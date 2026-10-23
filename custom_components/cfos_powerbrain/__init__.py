@@ -65,9 +65,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
         f"{entry.title} settings",
     )
     # The first read identifies the wallbox and settles its optional blocks,
-    # which decides the entities, so both polls must succeed before them.
+    # which decides the entities, so it must succeed before them. The
+    # settings are not needed for that; their entities go unavailable while
+    # the settings block does not answer instead of holding up the rest.
     await readings.async_config_entry_first_refresh()
-    await settings.async_config_entry_first_refresh()
+    await settings.async_refresh()
 
     identity = wallbox.identity
     runtime_data = CfosRuntimeData(
@@ -92,8 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
         config_entry_id=entry.entry_id, **runtime_data.wallbox.device_info
     )
 
-    for number in sorted(entry.options.get(CONF_S0_METERS, [])):
-        number = int(number)
+    for number in sorted(int(n) for n in entry.options.get(CONF_S0_METERS, [])):
         meter = CfosS0Meter(
             async_get_unit(
                 hass,

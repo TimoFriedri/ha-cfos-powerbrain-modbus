@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import timedelta
 
 from freezegun.api import FrozenDateTimeFactory
-from modbus_connection import ModbusConnectionError, ModbusTimeoutError
+from modbus_connection import (
+    IllegalDataAddressError,
+    ModbusConnectionError,
+    ModbusTimeoutError,
+)
 from modbus_connection.mock import MockModbusConnection
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -73,6 +77,20 @@ async def test_setup_fails_for_other_vendor(
     await hass.async_block_till_done()
 
     assert config_entry.state is ConfigEntryState.SETUP_ERROR
+
+
+async def test_refused_settings_block_does_not_block_setup(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+) -> None:
+    mock_modbus[4701].for_unit(1).fail_read(8080, IllegalDataAddressError())
+    config_entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert config_entry.state is ConfigEntryState.LOADED
+    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
 
 
 async def test_outage_and_recovery(

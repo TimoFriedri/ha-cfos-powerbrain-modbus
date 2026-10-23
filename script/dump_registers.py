@@ -1,6 +1,6 @@
 """Read a cFos Power Brain over Modbus TCP and print what the integration sees.
 
-Needs only Python 3.13+ and modbus-connection, no Home Assistant:
+Needs only Python 3.12+ and modbus-connection, no Home Assistant:
 
     pip install "modbus-connection[tmodbus]>=4.12.3"
     python script/dump_registers.py 192.168.1.50
