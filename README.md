@@ -482,14 +482,6 @@ counterpart:
 | Pause reason, pause time | ❌ no Modbus counterpart |
 | Other devices managed by the Charging Manager | ❌ not yet; available under Modbus ID + 1 |
 
-## Roadmap
-
-- The wallboxes and meters the Charging Manager manages, from its SunSpec
-  server under Modbus ID + 1.
-- Manifest categories (`energy.ev_charging`, `energy.meters_monitoring`) once
-  Home Assistant's hassfest accepts them, expected with Home Assistant
-  2026.11.
-
 ## Reporting problems
 
 1. Download diagnostics: **Settings → Devices & services → cFos Power Brain

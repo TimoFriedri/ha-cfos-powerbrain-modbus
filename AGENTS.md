@@ -114,4 +114,4 @@ rule. In practice, Bronze here means:
   `X.Y.Z` (no `v` prefix) on GitHub and writes the release notes. HACS offers
   the GitHub releases.
 - The manifest `categories` are held back until hassfest accepts them
-  (expected with Home Assistant 2026.11); see the README roadmap.
+  (expected with Home Assistant 2026.11); see [TODO.md](TODO.md).

@@ -45,5 +45,10 @@ still loads icons from brands.home-assistant.io, which has none for
 ## Due with Home Assistant 2026.11
 
 - [ ] Add the manifest `categories` (`energy.ev_charging`,
-      `energy.meters_monitoring`) once hassfest accepts them; see the README
-      roadmap.
+      `energy.meters_monitoring`) once hassfest accepts them. Hassfest in
+      Home Assistant 2026.10 rejects the key.
+
+## Features
+
+- [ ] Read the wallboxes and meters the Charging Manager manages, from its
+      SunSpec server under Modbus ID + 1.
