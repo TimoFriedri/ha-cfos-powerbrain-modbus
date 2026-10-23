@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import (
     IllegalDataAddressError,
@@ -9,9 +11,8 @@ from modbus_connection import (
     ModbusTimeoutError,
 )
 from modbus_connection.mock import MockModbusConnection
-from pytest_homeassistant_custom_component.common import (
-    MockConfigEntry,
-)
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
@@ -88,6 +89,64 @@ async def test_refused_settings_block_does_not_block_setup(
 
     assert config_entry.state is ConfigEntryState.LOADED
     assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
+
+
+async def test_failing_block_is_logged_once(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+    freezer: FrozenDateTimeFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A block that stops answering is logged once at info, as is its return."""
+    caplog.set_level(logging.INFO)
+    unit = mock_modbus[4701].for_unit(1)
+
+    unit.fail_read(8057, IllegalDataAddressError())
+    await poll(hass, freezer)
+    await poll(hass, freezer)
+    assert (
+        hass.states.get("sensor.cfos_power_brain_wallbox_power").state
+        == STATE_UNAVAILABLE
+    )
+    # The status block still answers.
+    assert (
+        hass.states.get("binary_sensor.cfos_power_brain_wallbox_charging").state == "on"
+    )
+
+    unit.fail_read(8057, None)
+    await poll(hass, freezer)
+    await poll(hass, freezer)
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
+
+    # "<entry title>: <what happened>: <cause>"
+    logged = [
+        (record.levelno, record.getMessage().split(": ")[1])
+        for record in caplog.records
+        if record.name.startswith("custom_components.cfos_powerbrain")
+    ]
+    assert logged == [
+        (logging.INFO, "meter failed to refresh, its entities are unavailable"),
+        (logging.INFO, "meter is available again"),
+    ]
+
+
+async def test_no_block_answering(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """A wallbox that answers no readings block at all is unavailable."""
+    unit = mock_modbus[4701].for_unit(1)
+    for address in (8057, 8086):
+        unit.fail_read(address, IllegalDataAddressError())
+    await poll(hass, freezer)
+
+    assert (
+        hass.states.get("binary_sensor.cfos_power_brain_wallbox_charging").state
+        == STATE_UNAVAILABLE
+    )
 
 
 async def test_outage_and_recovery(

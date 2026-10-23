@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from modbus_connection import ModbusTimeoutError
 from modbus_connection.mock import MockModbusConnection
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -35,6 +36,20 @@ async def test_diagnostics(
     assert registers["8008"] == "**REDACTED**"
     assert registers["8096"] == "**REDACTED**"
     assert SERIAL not in str(result)
+
+
+async def test_diagnostics_without_an_answer(
+    hass: HomeAssistant,
+    hass_client: ClientSessionGenerator,
+    init_integration: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+) -> None:
+    """A wallbox that stops answering still gives diagnostics, with the error."""
+    mock_modbus[4701].for_unit(1).fail_requests(ModbusTimeoutError("no answer"))
+
+    result = await get_diagnostics_for_config_entry(hass, hass_client, init_integration)
+
+    assert "no answer" in result["wallbox"]["registers"]["error"]
 
 
 async def test_session_energy_survives_restart(

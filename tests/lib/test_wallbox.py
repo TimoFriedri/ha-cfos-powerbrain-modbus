@@ -75,6 +75,10 @@ async def test_update_decodes_every_block(unit: MockModbusUnit) -> None:
     assert device.health.temperature == 35
 
 
+def test_identity_before_it_is_read(unit: MockModbusUnit) -> None:
+    assert CfosWallbox(unit).firmware_version is None
+
+
 async def test_reads_stay_within_documented_registers(unit: MockModbusUnit) -> None:
     device = CfosWallbox(unit)
     await device.async_update()

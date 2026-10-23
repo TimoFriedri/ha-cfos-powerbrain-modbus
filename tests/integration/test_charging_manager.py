@@ -31,7 +31,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.cfos_powerbrain.const import (
@@ -344,6 +344,21 @@ async def test_set_variable(
         )
 
 
+@pytest.mark.usefixtures("init_with_manager")
+async def test_set_variable_write_fails(
+    hass: HomeAssistant, manager_unit: MockModbusUnit
+) -> None:
+    manager_unit.fail_requests(ModbusConnectionError("gone"))
+
+    with pytest.raises(HomeAssistantError, match="Writing to the wallbox failed"):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_charging_manager_variable",
+            {"name": "night_rate", "value": 0.25},
+            blocking=True,
+        )
+
+
 @pytest.mark.usefixtures("init_integration")
 async def test_set_variable_without_charging_manager(hass: HomeAssistant) -> None:
     with pytest.raises(ServiceValidationError, match="not enabled"):
@@ -355,14 +370,26 @@ async def test_set_variable_without_charging_manager(hass: HomeAssistant) -> Non
         )
 
 
+def _server_refuses(unit: MockModbusUnit) -> Callable[[], None]:
+    unit.fail_requests(ModbusConnectionError("refused"))
+    return lambda: unit.fail_requests(None)
+
+
+def _server_without_map(unit: MockModbusUnit) -> Callable[[], None]:
+    unit.holding.clear()  # answers, but not with a SunSpec map
+    return lambda: unit.holding.update(charging_manager())
+
+
+@pytest.mark.parametrize("cause", [_server_refuses, _server_without_map])
 async def test_server_off_at_startup(
     hass: HomeAssistant,
     config_entry: MockConfigEntry,
     manager_unit: MockModbusUnit,
     freezer: FrozenDateTimeFactory,
+    cause: Callable[[MockModbusUnit], Callable[[], None]],
 ) -> None:
     """The wallbox comes up; the Charging Manager joins once its server answers."""
-    manager_unit.fail_requests(ModbusConnectionError("refused"))
+    undo = cause(manager_unit)
     config_entry.add_to_hass(hass)
     hass.config_entries.async_update_entry(config_entry, options=MANAGER_OPTIONS)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
@@ -372,7 +399,7 @@ async def test_server_off_at_startup(
     assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
     assert hass.states.get("sensor.cfos_charging_manager_grid_power") is None
 
-    manager_unit.fail_requests(None)
+    undo()
     await poll(hass, freezer)
     await hass.async_block_till_done()
 
