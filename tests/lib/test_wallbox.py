@@ -6,7 +6,7 @@ from modbus_connection import IllegalDataAddressError
 from modbus_connection.mock import MockModbusUnit, WriteEvent
 import pytest
 
-from custom_components.cfos_powerbrain.cfos_modbus import (
+from cfos_modbus import (
     CfosWallbox,
     ChargePilotState,
     PhaseRelay,

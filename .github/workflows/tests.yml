@@ -1,0 +1,89 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Install requirements
+        run: python -m pip install -r requirements_test.txt
+
+      - name: Ruff
+        run: |
+          python -m ruff check .
+          python -m ruff format --check .
+
+      - name: Mypy
+        run: python -m mypy
+
+  test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_test.txt
+
+      - name: Install requirements
+        run: python -m pip install -r requirements_test.txt
+
+      - name: Pytest
+        run: python -m pytest
+
+  library:
+    # The oldest modbus-connection a supported Home Assistant ships, and the newest.
+    name: Device library on modbus-connection ${{ matrix.modbus-connection }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        modbus-connection: ["==4.12.3", ""]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Install requirements
+        run: >
+          python -m pip install
+          "modbus-connection[tmodbus]${{ matrix.modbus-connection }}"
+          pytest pytest-asyncio
+
+      - name: Pytest
+        # Only the library tests: they need no Home Assistant.
+        run: python -m pytest tests/lib -p no:cacheprovider

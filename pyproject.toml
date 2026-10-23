@@ -26,7 +26,7 @@ convention = "pep257"
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
-known-first-party = ["custom_components", "tests"]
+known-first-party = ["cfos_modbus", "custom_components", "tests"]
 combine-as-imports = true
 section-order = [
     "future",

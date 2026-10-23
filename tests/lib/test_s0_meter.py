@@ -5,7 +5,7 @@ from __future__ import annotations
 from modbus_connection.mock import MockModbusUnit, WriteEvent
 import pytest
 
-from custom_components.cfos_powerbrain.cfos_modbus import CfosS0Meter, S0Phases
+from cfos_modbus import CfosS0Meter, S0Phases
 from tests.registers import s0_meter
 
 
