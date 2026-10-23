@@ -56,6 +56,7 @@ check needs every job of the workflow:
 | Integration tests | pytest; every module above 95 % coverage, `config_flow.py` at 100 % (`script/check_coverage.py`) |
 | Device library | the library tests on the oldest and newest supported `modbus-connection` |
 | Quality scale | `script/check_quality_scale.py`: the target rules are done or exempt, and hassfest's own rule checks pass |
+| Version | `script/check_version.py`: see releases below |
 | Hassfest, HACS | Home Assistant's and HACS' validation |
 
 To run the coverage and quality scale checks locally:
@@ -151,6 +152,11 @@ without checking the rule. In practice this means:
   to `main`; do not create pull requests, tags or releases unless asked.
 - Releases: bump `version` in `manifest.json`, then the maintainer tags
   `X.Y.Z` (no `v` prefix) on GitHub and writes the release notes. HACS offers
-  the GitHub releases.
+  the GitHub releases. CI enforces both ends:
+  - once `custom_components/` changed since the latest release tag, the
+    version in `manifest.json` must be above that tag, so the first such pull
+    request after a release bumps it;
+  - a pushed release tag must equal the version in `manifest.json`
+    (`.github/workflows/release.yml`).
 - The manifest `categories` are held back until hassfest accepts them
   (expected with Home Assistant 2026.11); see [TODO.md](TODO.md).

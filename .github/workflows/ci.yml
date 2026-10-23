@@ -134,6 +134,20 @@ jobs:
         # integrations.
         run: uv run python script/check_quality_scale.py home-assistant-core
 
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # the release tags and the changes since the latest
+          persist-credentials: false
+
+      - name: Check the version against the releases
+        # A changed integration needs a version above the latest release.
+        run: python3 script/check_version.py
+
   hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
     name: Hassfest
     runs-on: ubuntu-latest
@@ -159,7 +173,7 @@ jobs:
     # The one check branch protection needs to require.
     name: CI passed
     if: always()
-    needs: [lint, test, library, quality-scale, hassfest, hacs]
+    needs: [lint, test, library, quality-scale, version, hassfest, hacs]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless every job succeeded
