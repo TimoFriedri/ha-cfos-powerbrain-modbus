@@ -1,4 +1,4 @@
-"""The top-level device objects: the charging station and the S0 meters."""
+"""The top-level device objects of the Power Brain controller's own units."""
 
 from __future__ import annotations
 
@@ -22,27 +22,28 @@ class UnsupportedDeviceError(Exception):
 
 
 class CfosDevice(Device):
-    """A cFos Modbus unit; every one serves the identity block."""
+    """A cFos Modbus unit, polled as readings and settings."""
+
+    IDENTITY: tuple[str, ...] = ()
+    """Components read once at setup; part of the raw dump, never polled."""
 
     READINGS: tuple[str, ...] = ()
     SETTINGS: tuple[str, ...] = ()
 
-    def __init__(self, unit: ModbusUnit) -> None:
-        super().__init__(unit)
-        self.identity = Identity(unit)
-
     @property
     def serial_number(self) -> str | None:
-        """Serial number of the controller."""
-        return self.identity.serial_number
+        """Serial number of the device."""
+        raise NotImplementedError
 
-    async def _async_setup(self) -> None:
-        """Read the identity and refuse a device that is not a cFos one."""
-        await self.identity.async_update()
-        if not self.identity.is_cfos:
-            raise UnsupportedDeviceError(
-                "Unit does not report the cFos vendor id in registers 8000-8001"
-            )
+    @property
+    def firmware_version(self) -> str | None:
+        """Firmware version of the device."""
+        raise NotImplementedError
+
+    @property
+    def private_registers(self) -> Iterable[int]:
+        """Registers that identify the owner, for redacting a raw dump."""
+        return ()
 
     async def async_update_readings(self) -> UpdateReport:
         """Refresh what the device measures."""
@@ -60,11 +61,44 @@ class CfosDevice(Device):
     async def async_read_raw(self, names: Iterable[str] | None = None) -> Raw:
         """Every register this device reads, undecoded, for diagnostics."""
         if names is None:
-            names = ("identity", *self.READINGS, *self.SETTINGS)
+            names = (*self.IDENTITY, *self.READINGS, *self.SETTINGS)
         return await super().async_read_raw(names)
 
 
-class CfosWallbox(CfosDevice):
+class PowerBrainUnit(CfosDevice):
+    """A unit of the Power Brain controller; every one serves the identity block."""
+
+    IDENTITY = ("identity",)
+
+    def __init__(self, unit: ModbusUnit) -> None:
+        super().__init__(unit)
+        self.identity = Identity(unit)
+
+    @property
+    def serial_number(self) -> str | None:
+        """Serial number of the controller."""
+        return self.identity.serial_number
+
+    @property
+    def firmware_version(self) -> str | None:
+        """Product version of the controller."""
+        return self.identity.firmware_version
+
+    @property
+    def private_registers(self) -> Iterable[int]:
+        """The serial number and the last RFID tag."""
+        return (*range(8008, 8016), *range(8096, 8111))
+
+    async def _async_setup(self) -> None:
+        """Read the identity and refuse a device that is not a cFos one."""
+        await self.identity.async_update()
+        if not self.identity.is_cfos:
+            raise UnsupportedDeviceError(
+                "Unit does not report the cFos vendor id in registers 8000-8001"
+            )
+
+
+class CfosWallbox(PowerBrainUnit):
     """The charging station unit (default slave id 1, TCP port 4701)."""
 
     READINGS = ("status", "meter")
@@ -104,7 +138,7 @@ class CfosWallbox(CfosDevice):
         await self.status.write("cp_disconnect_remaining", seconds)
 
 
-class CfosS0Meter(CfosDevice):
+class CfosS0Meter(PowerBrainUnit):
     """An S0 meter input (default slave id 2 or 3, TCP port 4702 or 4703)."""
 
     READINGS = ("readings",)

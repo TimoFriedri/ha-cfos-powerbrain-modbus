@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import struct
+
 SERIAL = "PB2X123456"
 
 
@@ -93,3 +95,82 @@ def s0_meter(device_id: int = 0x101) -> dict[int, int | list[int]]:
         8066: words(43, 2),
         8068: words(43, 2),
     }
+
+
+# The Charging Manager's SunSpec server.
+
+CM_SERIAL = "CM2X654321"
+CM_METER_POWER = {
+    "grid": 2500.0,
+    "consumers": 9800.0,
+    "generators": 7300.0,
+    "pv_surplus": 0.0,
+    "wallbox_used": 7360.0,
+    "wallbox_available": 11040.0,
+    "fault": 0.0,
+}
+
+
+def float_words(value: float) -> list[int]:
+    """An IEEE-754 single over two big-endian registers."""
+    (raw,) = struct.unpack(">I", struct.pack(">f", value))
+    return [raw >> 16, raw & 0xFFFF]
+
+
+def _meter(power: float) -> list[int]:
+    """Model 213 data (124 registers) for a meter drawing ``power``."""
+    data = [0xFFFF] * 124  # unimplemented points read NaN
+    values = {
+        2: power / 230 / 3 * 3,
+        4: power / 230 / 3,
+        6: power / 230 / 3,
+        8: power / 230 / 3,
+        12: 230.0,
+        14: 231.0,
+        16: 229.0,
+        26: 50.0,
+        28: power,
+        30: power / 3,
+        32: power / 3,
+        34: power / 3,
+        60: 1000.0,
+        68: 250000.0,
+    }
+    for offset, value in values.items():
+        data[offset - 2 : offset] = float_words(value)
+    return data
+
+
+def charging_manager(
+    *, variables: tuple[str, ...] = ("pv_mode", "night_rate"), name_registers: int = 20
+) -> dict[int, int | list[int]]:
+    """The SunSpec map of a Charging Manager, laid out as cFos documents it.
+
+    ``name_registers`` picks the variable layout: 20 (as the text describes)
+    or 21 (as the register table shows).
+    """
+    words: list[int] = [0x5375, 0x6E53]  # "SunS"
+    common = (
+        ascii_words("cFos", 16)
+        + ascii_words("Charging Manager", 16)
+        + ascii_words("", 8)
+        + ascii_words("2.1.4", 8)
+        + ascii_words(CM_SERIAL, 16)
+        + [1, 0x8000]
+    )
+    words += [1, len(common), *common]
+    for power in CM_METER_POWER.values():
+        words += [213, 124, *_meter(power)]
+    parameters: list[int] = []
+    for value in (63000.0, 2000.0, 1000.0, 32000.0, 20000.0, 1.0, 0.0, 100.0):
+        parameters += float_words(value)
+    words += [60000, len(parameters), *parameters]
+    flags = [0] * 32
+    flags[2] = 1  # CM._flag3 is set
+    words += [60001, len(flags), *flags]
+    block: list[int] = []
+    for index, name in enumerate(variables):
+        block += ascii_words(name, name_registers) + float_words(float(index + 1))
+    words += [60002, len(block), *block]
+    words += [0xFFFF, 0]
+    return {40000: words}
