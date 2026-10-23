@@ -53,21 +53,25 @@ from .coordinator import CfosConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
+
+def _whole_number(maximum: int) -> probatio.All[Any]:
+    """A whole number from 1 to ``maximum``, typed into a box."""
+    return probatio.All(
+        NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=maximum)
+        ),
+        probatio.Coerce(int),
+    )
+
+
+PORT_FIELD = _whole_number(65535)
+UNIT_ID_FIELD = _whole_number(247)
+
 CONNECTION_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_HOST): TextSelector(),
-        probatio.Required(CONF_PORT, default=DEFAULT_EVSE_PORT): probatio.All(
-            NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
-            ),
-            probatio.Coerce(int),
-        ),
-        probatio.Required(CONF_UNIT_ID, default=DEFAULT_EVSE_UNIT_ID): probatio.All(
-            NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=247)
-            ),
-            probatio.Coerce(int),
-        ),
+        probatio.Required(CONF_PORT, default=DEFAULT_EVSE_PORT): PORT_FIELD,
+        probatio.Required(CONF_UNIT_ID, default=DEFAULT_EVSE_UNIT_ID): UNIT_ID_FIELD,
     }
 )
 
@@ -90,65 +94,73 @@ CHARGING_MANAGER_SCHEMA = {
     probatio.Required(CONF_CHARGING_MANAGER, default=False): BooleanSelector(),
     probatio.Required(
         CONF_CHARGING_MANAGER_PORT, default=DEFAULT_CHARGING_MANAGER_PORT
-    ): probatio.All(
-        NumberSelector(
-            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
-        ),
-        probatio.Coerce(int),
-    ),
+    ): PORT_FIELD,
     probatio.Required(
         CONF_CHARGING_MANAGER_UNIT_ID, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
-    ): probatio.All(
-        NumberSelector(
-            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=247)
-        ),
-        probatio.Coerce(int),
-    ),
+    ): UNIT_ID_FIELD,
 }
 
 STEP_USER_DATA_SCHEMA = CONNECTION_SCHEMA.extend(
     {**SCAN_INTERVAL_SCHEMA, **CHARGING_MANAGER_SCHEMA}
 )
 
+OPTIONS_SCHEMA = probatio.Schema(
+    {
+        **SCAN_INTERVAL_SCHEMA,
+        probatio.Required(CONF_S0_METERS, default=[]): SelectSelector(
+            SelectSelectorConfig(
+                options=[str(number) for number in S0_METER_PORTS],
+                multiple=True,
+                translation_key=CONF_S0_METERS,
+            )
+        ),
+        **CHARGING_MANAGER_SCHEMA,
+    }
+)
 
-async def _async_probe(hass: HomeAssistant, data: dict[str, Any]) -> str:
-    """Identify the wallbox and return its serial number, or raise."""
+
+async def _async_identify_wallbox(
+    hass: HomeAssistant,
+    data: dict[str, Any],
+    errors: dict[str, str],
+    placeholders: dict[str, str],
+) -> str | None:
+    """Return the wallbox's serial number, or fill in the errors."""
     params = ModbusTcpParams(host=data[CONF_HOST], port=data[CONF_PORT])
-    async with async_get_temporary_unit(hass, params, data[CONF_UNIT_ID]) as unit:
-        wallbox = CfosWallbox(unit)
-        await wallbox.async_ensure_setup()
-    serial = wallbox.serial_number
-    if not serial:
-        raise UnsupportedDeviceError("The wallbox reports no serial number")
-    return serial
+    try:
+        async with async_get_temporary_unit(hass, params, data[CONF_UNIT_ID]) as unit:
+            wallbox = CfosWallbox(unit)
+            await wallbox.async_ensure_setup()
+    except UnsupportedDeviceError:
+        errors["base"] = "not_cfos"
+    except (ModbusError, HomeAssistantError) as err:
+        errors["base"] = "cannot_connect"
+        placeholders["error"] = str(err)
+    except Exception:
+        _LOGGER.exception("Unexpected error identifying the wallbox")
+        errors["base"] = "unknown"
+    else:
+        if serial := wallbox.serial_number:
+            return serial
+        errors["base"] = "not_cfos"  # nothing to tell this controller apart by
+    return None
 
 
-async def _async_probe_charging_manager(
-    hass: HomeAssistant, host: str, port: int, unit_id: int
-) -> None:
-    """Find the Charging Manager's SunSpec server, or raise."""
-    params = ModbusTcpParams(host=host, port=port)
-    async with async_get_temporary_unit(hass, params, unit_id) as unit:
-        await CfosChargingManager(unit).async_ensure_setup()
-
-
-async def _async_validate_charging_manager(
+async def _async_check_charging_manager(
     hass: HomeAssistant,
     host: str,
     options: dict[str, Any],
     errors: dict[str, str],
     placeholders: dict[str, str],
 ) -> None:
-    """Probe the Charging Manager if it is switched on; fill in the errors."""
+    """Make sure the Charging Manager answers if it is switched on, or fill in the errors."""
     if not options[CONF_CHARGING_MANAGER]:
         return
+    params = ModbusTcpParams(host=host, port=options[CONF_CHARGING_MANAGER_PORT])
+    unit_id = options[CONF_CHARGING_MANAGER_UNIT_ID]
     try:
-        await _async_probe_charging_manager(
-            hass,
-            host,
-            options[CONF_CHARGING_MANAGER_PORT],
-            options[CONF_CHARGING_MANAGER_UNIT_ID],
-        )
+        async with async_get_temporary_unit(hass, params, unit_id) as unit:
+            await CfosChargingManager(unit).async_ensure_setup()
     except UnsupportedDeviceError:
         errors["base"] = "charging_manager_not_found"
     except (ModbusError, HomeAssistantError) as err:
@@ -184,11 +196,13 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
             options = {
                 key: value for key, value in user_input.items() if key not in data
             }
-            serial = await self._async_validate(data, errors, placeholders)
+            serial = await _async_identify_wallbox(
+                self.hass, data, errors, placeholders
+            )
             if serial is not None:
                 await self.async_set_unique_id(serial)
                 self._abort_if_unique_id_configured(updates=data)
-                await _async_validate_charging_manager(
+                await _async_check_charging_manager(
                     self.hass, data[CONF_HOST], options, errors, placeholders
                 )
                 if not errors:
@@ -213,7 +227,9 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
         if user_input is not None:
-            serial = await self._async_validate(user_input, errors, placeholders)
+            serial = await _async_identify_wallbox(
+                self.hass, user_input, errors, placeholders
+            )
             if serial is not None:
                 await self.async_set_unique_id(serial)
                 self._abort_if_unique_id_mismatch(reason="wrong_device")
@@ -228,40 +244,6 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders=placeholders,
         )
 
-    async def _async_validate(
-        self,
-        data: dict[str, Any],
-        errors: dict[str, str],
-        placeholders: dict[str, str],
-    ) -> str | None:
-        """Probe the wallbox; return its serial, or fill in the errors."""
-        try:
-            return await _async_probe(self.hass, data)
-        except UnsupportedDeviceError:
-            errors["base"] = "not_cfos"
-        except (ModbusError, HomeAssistantError) as err:
-            errors["base"] = "cannot_connect"
-            placeholders["error"] = str(err)
-        except Exception:
-            _LOGGER.exception("Unexpected error identifying the wallbox")
-            errors["base"] = "unknown"
-        return None
-
-
-OPTIONS_SCHEMA = probatio.Schema(
-    {
-        **SCAN_INTERVAL_SCHEMA,
-        probatio.Required(CONF_S0_METERS, default=[]): SelectSelector(
-            SelectSelectorConfig(
-                options=[str(number) for number in S0_METER_PORTS],
-                multiple=True,
-                translation_key=CONF_S0_METERS,
-            )
-        ),
-        **CHARGING_MANAGER_SCHEMA,
-    }
-)
-
 
 class CfosOptionsFlow(OptionsFlowWithReload):
     """Polling interval, the S0 meters and the Charging Manager."""
@@ -273,7 +255,7 @@ class CfosOptionsFlow(OptionsFlowWithReload):
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
         if user_input is not None:
-            await _async_validate_charging_manager(
+            await _async_check_charging_manager(
                 self.hass,
                 self.config_entry.data[CONF_HOST],
                 user_input,
