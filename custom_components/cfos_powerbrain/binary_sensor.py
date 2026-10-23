@@ -14,7 +14,7 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .cfos_modbus import CfosWallbox
+from .cfos_modbus import CfosWallbox, EvseStatus
 from .coordinator import CfosConfigEntry
 from .entity import CfosEntity, CfosEntityDescription
 
@@ -27,7 +27,7 @@ class CfosBinarySensorEntityDescription(
 ):
     """Describe a binary sensor of the wallbox."""
 
-    value_fn: Callable[[CfosWallbox], bool | None]
+    value_fn: Callable[[EvseStatus], bool | None]
 
 
 WALLBOX_BINARY_SENSORS: tuple[CfosBinarySensorEntityDescription, ...] = (
@@ -36,26 +36,26 @@ WALLBOX_BINARY_SENSORS: tuple[CfosBinarySensorEntityDescription, ...] = (
         translation_key="vehicle_connected",
         component="status",
         device_class=BinarySensorDeviceClass.PLUG,
-        value_fn=lambda device: device.status.vehicle_connected,
+        value_fn=lambda status: status.vehicle_connected,
     ),
     CfosBinarySensorEntityDescription(
         key="charging",
         component="status",
         device_class=BinarySensorDeviceClass.BATTERY_CHARGING,
-        value_fn=lambda device: device.status.charging,
+        value_fn=lambda status: status.charging,
     ),
     CfosBinarySensorEntityDescription(
         key="problem",
         component="status",
         device_class=BinarySensorDeviceClass.PROBLEM,
-        value_fn=lambda device: device.status.problem,
+        value_fn=lambda status: status.problem,
     ),
     CfosBinarySensorEntityDescription(
         key="phase_switching_allowed",
         translation_key="phase_switching_allowed",
         component="status",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.status.phase_switching_allowed,
+        value_fn=lambda status: status.phase_switching_allowed,
     ),
 )
 
@@ -82,4 +82,4 @@ class CfosBinarySensor(CfosEntity[CfosWallbox], BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         """The state from the most recent poll."""
-        return self.entity_description.value_fn(self.device)
+        return self.entity_description.value_fn(self.device.status)

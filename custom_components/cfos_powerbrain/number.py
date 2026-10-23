@@ -210,8 +210,9 @@ class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
     @property
     def native_value(self) -> float | None:
         """The value from the most recent poll."""
-        component = getattr(self.device, self.entity_description.component)
-        value: float | None = getattr(component, self.entity_description.field)
+        value: float | None = getattr(
+            self._component, self.entity_description.field, None
+        )
         return value
 
     async def async_set_native_value(self, value: float) -> None:
@@ -219,5 +220,4 @@ class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
         description = self.entity_description
         if description.flash and value == self.native_value:
             return
-        component = getattr(self.device, description.component)
-        await self._async_write(component.write(description.field, value))
+        await self._async_write(self._component.write(description.field, value))

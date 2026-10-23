@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 import logging
 
-from modbus_connection import ModbusTcpParams
+from modbus_connection import ModbusTcpParams, ModbusUnit
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
@@ -15,11 +15,10 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.typing import ConfigType
 
 from .cfos_modbus import (
-    DEFAULT_CHARGING_MANAGER_PORT,
-    DEFAULT_CHARGING_MANAGER_UNIT_ID,
     S0_METER_PORTS,
     S0_METER_UNIT_IDS,
     CfosChargingManager,
+    CfosDevice,
     CfosS0Meter,
     CfosWallbox,
 )
@@ -67,24 +66,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
     )
 
     wallbox = CfosWallbox(
-        async_get_unit(
-            hass,
-            entry,
-            ModbusTcpParams(host=host, port=entry.data[CONF_PORT]),
-            entry.data[CONF_UNIT_ID],
-        )
+        _async_get_unit(hass, entry, entry.data[CONF_PORT], entry.data[CONF_UNIT_ID])
     )
-    readings = CfosCoordinator(
-        hass, entry, wallbox, wallbox.async_update_readings, interval, entry.title
-    )
-    settings = CfosCoordinator(
-        hass,
-        entry,
-        wallbox,
-        wallbox.async_update_settings,
-        SETTINGS_SCAN_INTERVAL,
-        f"{entry.title} settings",
-    )
+    readings, settings = _coordinators(hass, entry, wallbox, interval, entry.title)
     # The first read identifies the wallbox and settles its optional blocks,
     # which decides the entities, so it must succeed before them. The
     # settings are not needed for that; their entities go unavailable while
@@ -117,28 +101,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
 
     for number in sorted(int(n) for n in entry.options.get(CONF_S0_METERS, [])):
         meter = CfosS0Meter(
-            async_get_unit(
-                hass,
-                entry,
-                ModbusTcpParams(host=host, port=S0_METER_PORTS[number]),
-                S0_METER_UNIT_IDS[number],
+            _async_get_unit(
+                hass, entry, S0_METER_PORTS[number], S0_METER_UNIT_IDS[number]
             )
         )
-        meter_readings = CfosCoordinator(
-            hass,
-            entry,
-            meter,
-            meter.async_update_readings,
-            interval,
-            f"{entry.title} S0 meter {number}",
-        )
-        meter_settings = CfosCoordinator(
-            hass,
-            entry,
-            meter,
-            meter.async_update_settings,
-            SETTINGS_SCAN_INTERVAL,
-            f"{entry.title} S0 meter {number} settings",
+        meter_readings, meter_settings = _coordinators(
+            hass, entry, meter, interval, f"{entry.title} S0 meter {number}"
         )
         # An S0 meter is an optional extra: its entities go unavailable while
         # it does not answer instead of holding up the wallbox.
@@ -160,7 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
 
     if entry.options.get(CONF_CHARGING_MANAGER):
         runtime_data.charging_manager = await _async_setup_charging_manager(
-            hass, entry, host, serial, interval
+            hass, entry, serial, interval
         )
 
     entry.runtime_data = runtime_data
@@ -169,45 +137,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
 
 
 async def _async_setup_charging_manager(
-    hass: HomeAssistant,
-    entry: CfosConfigEntry,
-    host: str,
-    serial: str,
-    interval: timedelta,
+    hass: HomeAssistant, entry: CfosConfigEntry, serial: str, interval: timedelta
 ) -> CfosUnitData[CfosChargingManager]:
     """Reach the Charging Manager through its SunSpec server, next to the wallbox."""
     manager = CfosChargingManager(
-        async_get_unit(
+        _async_get_unit(
             hass,
             entry,
-            ModbusTcpParams(
-                host=host,
-                port=entry.options.get(
-                    CONF_CHARGING_MANAGER_PORT, DEFAULT_CHARGING_MANAGER_PORT
-                ),
-            ),
-            entry.options.get(
-                CONF_CHARGING_MANAGER_UNIT_ID, DEFAULT_CHARGING_MANAGER_UNIT_ID
-            ),
+            entry.options[CONF_CHARGING_MANAGER_PORT],
+            entry.options[CONF_CHARGING_MANAGER_UNIT_ID],
         )
     )
-    readings = CfosCoordinator(
-        hass,
-        entry,
-        manager,
-        manager.async_update_readings,
-        interval,
-        f"{entry.title} Charging Manager",
-        optional=True,
-    )
-    settings = CfosCoordinator(
-        hass,
-        entry,
-        manager,
-        manager.async_update_settings,
-        SETTINGS_SCAN_INTERVAL,
-        f"{entry.title} Charging Manager settings",
-        optional=True,
+    readings, settings = _coordinators(
+        hass, entry, manager, interval, f"{entry.title} Charging Manager", optional=True
     )
     await readings.async_refresh()
     if readings.last_update_success:
@@ -239,9 +181,43 @@ async def _async_setup_charging_manager(
             model=(common.model if common else None) or "Charging Manager",
             translation_key="charging_manager",
             sw_version=manager.firmware_version,
-            configuration_url=f"http://{host}",
+            configuration_url=f"http://{entry.data[CONF_HOST]}",
         ),
         unique_id_prefix=f"{serial}_charging_manager",
+    )
+
+
+@callback
+def _async_get_unit(
+    hass: HomeAssistant, entry: CfosConfigEntry, port: int, unit_id: int
+) -> ModbusUnit:
+    """A unit on the wallbox's host, over a connection the modbus integration shares."""
+    params = ModbusTcpParams(host=entry.data[CONF_HOST], port=port)
+    return async_get_unit(hass, entry, params, unit_id)
+
+
+def _coordinators(
+    hass: HomeAssistant,
+    entry: CfosConfigEntry,
+    device: CfosDevice,
+    interval: timedelta,
+    name: str,
+    *,
+    optional: bool = False,
+) -> tuple[CfosCoordinator, CfosCoordinator]:
+    """Coordinators for a unit's readings, every ``interval``, and its settings."""
+    return (
+        CfosCoordinator(
+            hass, entry, device.async_update_readings, interval, name, optional=optional
+        ),
+        CfosCoordinator(
+            hass,
+            entry,
+            device.async_update_settings,
+            SETTINGS_SCAN_INTERVAL,
+            f"{name} settings",
+            optional=optional,
+        ),
     )
 
 

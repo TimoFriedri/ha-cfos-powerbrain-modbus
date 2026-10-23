@@ -14,7 +14,7 @@ from homeassistant.core import HomeAssistant
 from .cfos_modbus import CfosChargingManager, PowerBrainUnit, UnsupportedDeviceError
 from .coordinator import CfosConfigEntry, CfosUnitData
 
-TO_REDACT = {CONF_HOST, "unique_id", "serial_number"}
+TO_REDACT = {CONF_HOST}
 
 
 async def _async_unit_diagnostics(unit: CfosUnitData[Any]) -> dict[str, Any]:

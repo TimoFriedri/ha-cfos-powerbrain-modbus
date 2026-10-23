@@ -40,7 +40,6 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
         self,
         hass: HomeAssistant,
         entry: CfosConfigEntry,
-        device: CfosDevice,
         poll: Callable[[], Awaitable[UpdateReport]],
         interval: timedelta,
         name: str,
@@ -59,7 +58,6 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
             name=name,
             update_interval=interval,
         )
-        self.device = device
         self._poll = poll
         self._optional = optional
         self._failing: set[str] = set()

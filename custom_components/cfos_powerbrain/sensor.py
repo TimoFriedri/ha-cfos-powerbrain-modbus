@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from decimal import Decimal
+from operator import attrgetter
 from typing import Any, Self
 
 from homeassistant.components.sensor import (
@@ -33,9 +34,15 @@ from .cfos_modbus import (
     METERS,
     CfosChargingManager,
     CfosDevice,
-    CfosS0Meter,
     CfosWallbox,
     ChargePilotState,
+    CmMeter,
+    CmVariables,
+    CmVariablesLongName,
+    EvseHealth,
+    EvseMeter,
+    EvseStatus,
+    S0MeterReadings,
 )
 from .coordinator import CfosConfigEntry, CfosUnitData
 from .entity import CfosEntity, CfosEntityDescription
@@ -44,36 +51,24 @@ PARALLEL_UPDATES = 0
 
 
 @dataclass(frozen=True, kw_only=True)
-class CfosSensorEntityDescription[DeviceT: CfosDevice](
+class CfosSensorEntityDescription[ComponentT](
     SensorEntityDescription, CfosEntityDescription
 ):
-    """Describe a sensor reading one value of a cFos unit."""
+    """Describe a sensor reading one value of a cFos unit's component."""
 
-    value_fn: Callable[[DeviceT], StateType]
-
-
-def _component_value(component: str, field: str) -> Callable[[CfosDevice], StateType]:
-    """Read one field off a component, or None while the component is absent."""
-
-    def value(device: CfosDevice) -> StateType:
-        found = getattr(device, component)
-        result: StateType = getattr(found, field, None) if found else None
-        return result
-
-    return value
+    value_fn: Callable[[ComponentT], StateType]
 
 
-def _phase_currents[DeviceT: CfosDevice](
-    device_type: type[DeviceT],
+def _phase_currents(
     component: str,
     *,
     key: str = "current",
     translation_key: str = "phase_current",
     enabled: bool = True,
-) -> tuple[CfosSensorEntityDescription[DeviceT], ...]:
+) -> tuple[CfosSensorEntityDescription[Any], ...]:
     """Describe the three phase currents of a meter component."""
     return tuple(
-        CfosSensorEntityDescription[DeviceT](
+        CfosSensorEntityDescription[Any](
             key=f"{key}_l{phase}",
             translation_key=translation_key,
             translation_placeholders={"phase": f"L{phase}"},
@@ -83,26 +78,24 @@ def _phase_currents[DeviceT: CfosDevice](
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=1,
             entity_registry_enabled_default=enabled,
-            value_fn=_component_value(component, f"current_l{phase}"),
+            value_fn=attrgetter(f"current_l{phase}"),
         )
         for phase in (1, 2, 3)
     )
 
 
-WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[CfosWallbox], ...] = (
-    CfosSensorEntityDescription[CfosWallbox](
+WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[Any], ...] = (
+    CfosSensorEntityDescription[EvseStatus](
         key="charge_pilot_state",
         translation_key="charge_pilot_state",
         component="status",
         device_class=SensorDeviceClass.ENUM,
         options=[state.name.lower() for state in ChargePilotState],
-        value_fn=lambda device: (
-            None
-            if (state := device.status.charge_pilot_state) is None
-            else state.name.lower()
+        value_fn=lambda status: (
+            None if (state := status.charge_pilot_state) is None else state.name.lower()
         ),
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseStatus](
         key="charging_current",
         translation_key="charging_current",
         component="status",
@@ -110,9 +103,9 @@ WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[CfosWallbox], ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=1,
-        value_fn=lambda device: device.status.charging_current,
+        value_fn=lambda status: status.charging_current,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseStatus](
         key="cable_current",
         translation_key="cable_current",
         component="status",
@@ -120,25 +113,25 @@ WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[CfosWallbox], ...] = (
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         entity_category=EntityCategory.DIAGNOSTIC,
         suggested_display_precision=1,
-        value_fn=lambda device: device.status.cable_current,
+        value_fn=lambda status: status.cable_current,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseStatus](
         key="last_rfid",
         translation_key="last_rfid",
         component="status",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda device: device.status.last_rfid or None,
+        value_fn=lambda status: status.last_rfid or None,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseMeter](
         key="power",
         component="meter",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda device: device.meter.power if device.meter else None,
+        value_fn=lambda meter: meter.power,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseMeter](
         key="energy",
         translation_key="total_energy",
         component="meter",
@@ -146,17 +139,17 @@ WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[CfosWallbox], ...] = (
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        value_fn=lambda device: device.meter.energy if device.meter else None,
+        value_fn=lambda meter: meter.energy,
     ),
-    *_phase_currents(CfosWallbox, "meter"),
-    CfosSensorEntityDescription[CfosWallbox](
+    *_phase_currents("meter"),
+    CfosSensorEntityDescription[EvseMeter](
         key="active_phases",
         translation_key="active_phases",
         component="meter",
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda device: device.meter.active_phases if device.meter else None,
+        value_fn=lambda meter: meter.active_phases,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseHealth](
         key="temperature",
         translation_key="controller_temperature",
         component="health",
@@ -164,28 +157,28 @@ WALLBOX_SENSORS: tuple[CfosSensorEntityDescription[CfosWallbox], ...] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda device: device.health.temperature if device.health else None,
+        value_fn=lambda health: health.temperature,
     ),
-    CfosSensorEntityDescription[CfosWallbox](
+    CfosSensorEntityDescription[EvseHealth](
         key="restart_count",
         translation_key="restart_count",
         component="health",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda device: device.health.restart_count if device.health else None,
+        value_fn=lambda health: health.restart_count,
     ),
 )
 
-S0_METER_SENSORS: tuple[CfosSensorEntityDescription[CfosS0Meter], ...] = (
-    CfosSensorEntityDescription[CfosS0Meter](
+S0_METER_SENSORS: tuple[CfosSensorEntityDescription[Any], ...] = (
+    CfosSensorEntityDescription[S0MeterReadings](
         key="power",
         component="readings",
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda device: device.readings.power,
+        value_fn=lambda readings: readings.power,
     ),
-    CfosSensorEntityDescription[CfosS0Meter](
+    CfosSensorEntityDescription[S0MeterReadings](
         key="energy",
         translation_key="total_energy",
         component="readings",
@@ -193,19 +186,19 @@ S0_METER_SENSORS: tuple[CfosSensorEntityDescription[CfosS0Meter], ...] = (
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        value_fn=lambda device: device.readings.energy,
+        value_fn=lambda readings: readings.energy,
     ),
-    *_phase_currents(CfosS0Meter, "readings"),
-    CfosSensorEntityDescription[CfosS0Meter](
+    *_phase_currents("readings"),
+    CfosSensorEntityDescription[S0MeterReadings](
         key="pulses",
         translation_key="pulses",
         component="readings",
         state_class=SensorStateClass.TOTAL_INCREASING,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda device: device.readings.pulses,
+        value_fn=lambda readings: readings.pulses,
     ),
-    CfosSensorEntityDescription[CfosS0Meter](
+    CfosSensorEntityDescription[S0MeterReadings](
         key="time_per_pulse",
         translation_key="time_per_pulse",
         component="readings",
@@ -214,42 +207,38 @@ S0_METER_SENSORS: tuple[CfosSensorEntityDescription[CfosS0Meter], ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda device: device.readings.time_per_pulse,
+        value_fn=lambda readings: readings.time_per_pulse,
     ),
 )
 
-CHARGING_MANAGER_SENSORS: tuple[
-    CfosSensorEntityDescription[CfosChargingManager], ...
-] = (
+CHARGING_MANAGER_SENSORS: tuple[CfosSensorEntityDescription[Any], ...] = (
     *(
-        CfosSensorEntityDescription[CfosChargingManager](
-            key=f"{meter}_power",
-            translation_key=f"{meter}_power",
-            component=meter,
+        CfosSensorEntityDescription[CmMeter](
+            key=f"{name}_power",
+            translation_key=f"{name}_power",
+            component=name,
             device_class=SensorDeviceClass.POWER,
             native_unit_of_measurement=UnitOfPower.WATT,
             state_class=SensorStateClass.MEASUREMENT,
             suggested_display_precision=0,
-            value_fn=_component_value(meter, "power"),
+            value_fn=lambda meter: meter.power,
         )
-        for meter in METERS
+        for name in METERS
     ),
     *_phase_currents(
-        CfosChargingManager,
         "grid",
         key="grid_current",
         translation_key="grid_current",
         enabled=False,
     ),
     *_phase_currents(
-        CfosChargingManager,
         "wallbox_available",
         key="wallbox_available_current",
         translation_key="wallbox_available_current",
         enabled=False,
     ),
     *(
-        CfosSensorEntityDescription[CfosChargingManager](
+        CfosSensorEntityDescription[CmMeter](
             key=f"grid_energy_{direction}",
             translation_key=f"grid_energy_{direction}",
             component="grid",
@@ -258,13 +247,13 @@ CHARGING_MANAGER_SENSORS: tuple[
             suggested_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             state_class=SensorStateClass.TOTAL_INCREASING,
             entity_registry_enabled_default=False,
-            value_fn=_component_value("grid", f"energy_{direction}"),
+            value_fn=attrgetter(f"energy_{direction}"),
         )
         for direction in ("imported", "exported")
     ),
 )
 
-SESSION_ENERGY = CfosSensorEntityDescription[CfosWallbox](
+SESSION_ENERGY = CfosSensorEntityDescription[EvseMeter](
     key="session_energy",
     translation_key="session_energy",
     component="meter",
@@ -272,7 +261,7 @@ SESSION_ENERGY = CfosSensorEntityDescription[CfosWallbox](
     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
     state_class=SensorStateClass.TOTAL_INCREASING,
     suggested_display_precision=2,
-    value_fn=lambda device: None,  # derived, see CfosSessionEnergySensor
+    value_fn=lambda meter: None,  # derived, see CfosSessionEnergySensor
 )
 
 
@@ -309,13 +298,16 @@ async def async_setup_entry(
 
 def _variable_sensors(
     manager: CfosUnitData[CfosChargingManager],
-) -> list[CfosVariableSensor]:
+) -> list[CfosSensor[CfosChargingManager]]:
     """One sensor per named variable, keyed by name so it survives reordering.
 
     Names that only differ in case or punctuation, like "PV Mode" and
     "pv_mode", would share a key; later ones get their position appended.
+    The sensors are read-only on purpose: writing a value replaces the
+    variable's formula, so that is the separate set_charging_manager_variable
+    action.
     """
-    sensors: list[CfosVariableSensor] = []
+    sensors: list[CfosSensor[CfosChargingManager]] = []
     keys: set[str] = set()
     for index, name in enumerate(manager.device.variable_names):
         if not name:
@@ -324,12 +316,31 @@ def _variable_sensors(
         if key in keys:
             key = f"{key}_{index + 1}"
         keys.add(key)
-        sensors.append(CfosVariableSensor(manager, index, name, key))
+        description = CfosSensorEntityDescription[CmVariables | CmVariablesLongName](
+            key=key,
+            translation_key="variable",
+            translation_placeholders={"name": name},
+            component="variables",
+            value_fn=_variable_value(index),
+        )
+        sensors.append(CfosSensor(manager, description))
     return sensors
 
 
+def _variable_value(
+    index: int,
+) -> Callable[[CmVariables | CmVariablesLongName], StateType]:
+    """Read the value of the variable at ``index``."""
+
+    def value(variables: CmVariables | CmVariablesLongName) -> StateType:
+        result: StateType = variables.variables[index].value
+        return result
+
+    return value
+
+
 def _create[DeviceT: CfosDevice](
-    unit: CfosUnitData[DeviceT], description: CfosSensorEntityDescription[DeviceT]
+    unit: CfosUnitData[DeviceT], description: CfosSensorEntityDescription[Any]
 ) -> CfosSensor[DeviceT]:
     """A plain sensor, or one that keeps its total across outages."""
     if description.state_class is SensorStateClass.TOTAL_INCREASING:
@@ -340,30 +351,51 @@ def _create[DeviceT: CfosDevice](
 class CfosSensor[DeviceT: CfosDevice](CfosEntity[DeviceT], SensorEntity):
     """A sensor reading one value of a cFos unit."""
 
-    entity_description: CfosSensorEntityDescription[DeviceT]
+    entity_description: CfosSensorEntityDescription[Any]
 
     @property
     def native_value(self) -> StateType | date | datetime | Decimal:
         """The value from the most recent poll."""
-        return self.entity_description.value_fn(self.device)
+        return self._polled_value()
+
+    def _polled_value(self) -> StateType:
+        """The description's value of the component, None while it is absent."""
+        component = self._component
+        if component is None:
+            return None
+        return self.entity_description.value_fn(component)
 
 
-class CfosTotalSensor[DeviceT: CfosDevice](CfosSensor[DeviceT], RestoreSensor):
+class CfosKeptSensor[DeviceT: CfosDevice](CfosSensor[DeviceT]):
+    """A sensor that keeps its last value while the device is unreachable."""
+
+    @property
+    def available(self) -> bool:
+        """Always; the last value stays valid while the device is away."""
+        return True
+
+    @property
+    def native_value(self) -> StateType | date | datetime | Decimal:
+        """The last value taken."""
+        return self._attr_native_value
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Take the new value."""
+        self._process_data()
+        super()._handle_coordinator_update()
+
+    def _process_data(self) -> None:
+        """Take the value from the most recent poll."""
+        raise NotImplementedError
+
+
+class CfosTotalSensor[DeviceT: CfosDevice](CfosKeptSensor[DeviceT], RestoreSensor):
     """A counter: it holds its last value while the device is unreachable.
 
     A gap in a total damages long-term statistics and the energy dashboard,
     so the counter stays available and restores its value across restarts.
     """
-
-    @property
-    def available(self) -> bool:
-        """Always; the last total stays valid while the device is away."""
-        return True
-
-    @property
-    def native_value(self) -> StateType | date | datetime | Decimal:
-        """The last total seen."""
-        return self._attr_native_value
 
     async def async_added_to_hass(self) -> None:
         """Restore the last total, then take the current one."""
@@ -372,15 +404,9 @@ class CfosTotalSensor[DeviceT: CfosDevice](CfosSensor[DeviceT], RestoreSensor):
             self._attr_native_value = last.native_value
         self._process_data()
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Take the new total."""
-        self._process_data()
-        super()._handle_coordinator_update()
-
     def _process_data(self) -> None:
         """Keep the new value unless it is a glitch just below the last one."""
-        value = self.entity_description.value_fn(self.device)
+        value = self._polled_value()
         if not isinstance(value, int | float):
             return
         last = self._attr_native_value
@@ -414,7 +440,7 @@ class SessionExtraStoredData(ExtraStoredData):
             return None
 
 
-class CfosSessionEnergySensor(CfosSensor[CfosWallbox], RestoreEntity):
+class CfosSessionEnergySensor(CfosKeptSensor[CfosWallbox], RestoreEntity):
     """Energy charged since the vehicle was plugged in.
 
     Derived from the meter total: the session starts when the control pilot
@@ -423,16 +449,6 @@ class CfosSessionEnergySensor(CfosSensor[CfosWallbox], RestoreEntity):
 
     _start_energy: int | None = None
     _vehicle_connected = False
-
-    @property
-    def available(self) -> bool:
-        """Always; the last session stays valid while the device is away."""
-        return True
-
-    @property
-    def native_value(self) -> StateType | date | datetime | Decimal:
-        """Energy of the current or most recent session, in kWh."""
-        return self._attr_native_value
 
     @property
     def extra_restore_state_data(self) -> SessionExtraStoredData:
@@ -455,12 +471,6 @@ class CfosSessionEnergySensor(CfosSensor[CfosWallbox], RestoreEntity):
             self._vehicle_connected = data.vehicle_connected
         self._process_data()
 
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Follow the session."""
-        self._process_data()
-        super()._handle_coordinator_update()
-
     def _process_data(self) -> None:
         """Start a session on plug-in, and count energy while it lasts."""
         meter = self.device.meter
@@ -477,39 +487,3 @@ class CfosSessionEnergySensor(CfosSensor[CfosWallbox], RestoreEntity):
                 self._start_energy = energy
             self._attr_native_value = round((energy - self._start_energy) / 1000, 3)
         self._vehicle_connected = connected
-
-
-class CfosVariableSensor(CfosSensor[CfosChargingManager]):
-    """The value of a Charging Manager variable.
-
-    Read-only on purpose: writing a value replaces the variable's formula, so
-    that is the separate set_charging_manager_variable action.
-    """
-
-    def __init__(
-        self,
-        unit: CfosUnitData[CfosChargingManager],
-        index: int,
-        name: str,
-        key: str,
-    ) -> None:
-        """Initialize the sensor for the variable at ``index``."""
-        super().__init__(
-            unit,
-            CfosSensorEntityDescription[CfosChargingManager](
-                key=key,
-                translation_key="variable",
-                translation_placeholders={"name": name},
-                component="variables",
-                value_fn=lambda device: None,
-            ),
-        )
-        self._index = index
-
-    @property
-    def native_value(self) -> StateType | date | datetime | Decimal:
-        """The variable's value from the most recent poll."""
-        variables = self.device.variables
-        if variables is None or self._index >= len(variables.variables):
-            return None
-        return variables.variables[self._index].value

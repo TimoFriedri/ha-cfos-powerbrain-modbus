@@ -25,13 +25,14 @@ class CfosEntityDescription(EntityDescription):
     """Attribute name of the component on the device, e.g. ``status``."""
 
     exists_fn: Callable[[Any], bool] | None = None
-    """Whether the device has what the entity controls, settled at setup."""
+    """Whether the component has what the entity controls, settled at setup."""
 
     def supported(self, device: CfosDevice) -> bool:
         """Whether to create the entity for this device."""
-        if getattr(device, self.component) is None:
-            return False
-        return self.exists_fn is None or self.exists_fn(device)
+        component = getattr(device, self.component)
+        return component is not None and (
+            self.exists_fn is None or self.exists_fn(component)
+        )
 
 
 class CfosEntity[DeviceT: CfosDevice](CoordinatorEntity[CfosCoordinator]):
@@ -49,6 +50,11 @@ class CfosEntity[DeviceT: CfosDevice](CoordinatorEntity[CfosCoordinator]):
         self.device: DeviceT = unit.device
         self._attr_unique_id = f"{unit.unique_id_prefix}_{description.key}"
         self._attr_device_info = unit.device_info
+
+    @property
+    def _component(self) -> Any:
+        """The component this entity shows, or None while the device lacks it."""
+        return getattr(self.device, self.entity_description.component)
 
     @property
     def available(self) -> bool:

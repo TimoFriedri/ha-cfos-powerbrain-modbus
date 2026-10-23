@@ -25,7 +25,7 @@ PHASE_MODE = CfosSelectEntityDescription(
     translation_key="phase_mode",
     component="status",
     options=[relay.name.lower() for relay in PhaseRelay],
-    exists_fn=lambda device: device.status.phase_switching_allowed,
+    exists_fn=lambda status: status.phase_switching_allowed,
 )
 
 
