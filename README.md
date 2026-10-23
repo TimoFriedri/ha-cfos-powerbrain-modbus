@@ -22,41 +22,127 @@ write no YAML.
 
 **Wallbox** (Modbus slave ID 1, TCP port 4701)
 
-| Register | Entity | Type | Notes |
-| --- | --- | --- | --- |
-| 8058 | Total energy | sensor | only if a meter is attached (8112) |
-| 8058, 8092 | Session energy | sensor, derived | energy since the vehicle was plugged in; kept after unplugging until the next session |
-| 8062 | Power | sensor | only if a meter is attached (8112) |
-| 8064–8069 | Current L1, L2, L3 | sensor | only if a meter is attached (8112) |
-| 8064–8069 | Active phases | sensor, derived | phases carrying at least 1 A |
-| 8080 | Default cable current override | config, disabled | value after a reboot; **stored in flash** |
-| 8081 | Default charging current limit | config, disabled | value after a reboot; **stored in flash** |
-| 8082 | Default charging enabled | config, disabled | value after a reboot; **stored in flash** |
-| 8083 | Fail-safe timeout | config, disabled | **stored in flash**; see [Fail-safe](#the-modbus-fail-safe) |
-| 8085 | Fail-safe current | config, disabled | **stored in flash**; see [Fail-safe](#the-modbus-fail-safe) |
-| 8086 | Wake up vehicle | button | interrupts the control pilot for 5 s |
-| 8087 | Phase mode (1 / 3 phases) | select | only if the wallbox allows phase switching (8113 bit 8); volatile |
-| 8088 | Relay 2 | switch | only if a second relay is fitted (8113 bits 9–10); volatile |
-| 8090 | Cable current rating | diagnostic | |
-| 8091 | Cable current override | config, disabled | volatile |
-| 8092 | Charging state | sensor (enum) | waiting, vehicle connected, charging, charging (ventilation), no power, error, DC sensor error |
-| 8092 | Vehicle connected, Charging, Problem | binary sensor, derived | from the charging state |
-| 8093 | Charging current limit | number | 6–32 A in 0.1 A steps; volatile |
-| 8094 | Charging enabled | switch | volatile |
-| 8095 | Signaled charging current | sensor | current the wallbox signals to the vehicle |
-| 8096 | Last RFID | diagnostic, disabled | |
-| 8113 | Phase switching allowed | diagnostic | |
-| 8120 | Restarts | diagnostic, disabled | |
-| 8122 | Controller temperature | diagnostic | controller Rev. 3.0 and later |
+The **Writes** column says what writing a value does; see
+[Writing values: volatile or flash](#writing-values-volatile-or-flash).
+
+| Register | Entity | Type | Writes | Notes |
+| --- | --- | --- | --- | --- |
+| 8058 | Total energy | sensor | read-only | only if a meter is attached (8112) |
+| 8058, 8092 | Session energy | sensor, derived | read-only | energy since the vehicle was plugged in; kept after unplugging until the next session |
+| 8062 | Power | sensor | read-only | only if a meter is attached (8112) |
+| 8064–8069 | Current L1, L2, L3 | sensor | read-only | only if a meter is attached (8112) |
+| 8064–8069 | Active phases | sensor, derived | read-only | phases carrying at least 1 A |
+| 8080 | Default cable current override | config, disabled | **flash** | applied after a reboot |
+| 8081 | Default charging current limit | config, disabled | **flash** | applied after a reboot |
+| 8082 | Default charging enabled | config, disabled | **flash** | applied after a reboot |
+| 8083 | Fail-safe timeout | config, disabled | **flash** | see [Fail-safe](#the-modbus-fail-safe) |
+| 8085 | Fail-safe current | config, disabled | **flash** | see [Fail-safe](#the-modbus-fail-safe) |
+| 8086 | Wake up vehicle | button | volatile | interrupts the control pilot for 5 s |
+| 8087 | Phase mode (1 / 3 phases) | select | volatile | only if the wallbox allows phase switching (8113 bit 8) |
+| 8088 | Relay 2 | switch | volatile | only if a second relay is fitted (8113 bits 9–10) |
+| 8090 | Cable current rating | diagnostic | read-only | |
+| 8091 | Cable current override | config, disabled | volatile | |
+| 8092 | Charging state | sensor (enum) | read-only | waiting, vehicle connected, charging, charging (ventilation), no power, error, DC sensor error |
+| 8092 | Vehicle connected, Charging, Problem | binary sensor, derived | read-only | from the charging state |
+| 8093 | Charging current limit | number | volatile | 6–32 A in 0.1 A steps |
+| 8094 | Charging enabled | switch | volatile | |
+| 8095 | Signaled charging current | sensor | read-only | current the wallbox signals to the vehicle |
+| 8096 | Last RFID | diagnostic, disabled | read-only | |
+| 8113 | Phase switching allowed | diagnostic | read-only | |
+| 8120 | Restarts | diagnostic, disabled | read-only | |
+| 8122 | Controller temperature | diagnostic | read-only | controller Rev. 3.0 and later |
 
 **S0 meters** (optional, slave IDs 2 and 3, TCP ports 4702 and 4703): power,
-total energy, currents L1–L3, and as disabled extras the pulse counter, the
-time between pulses, pulses per kWh, nominal voltages and reset buttons.
+total energy and currents L1–L3, all read-only. Disabled extras: the pulse
+counter and the time between pulses (read-only); pulses per kWh and the
+nominal voltages (**flash**); buttons to reset the energy and pulse counters
+(**flash**).
 
 Total energy sensors keep their last value while the wallbox is unreachable
 and across restarts, so the energy dashboard has no gaps. A reading of 0 Wh,
 which the controller reports briefly after it starts, is treated as unknown
 rather than as a meter reset.
+
+## Writing values: volatile or flash
+
+The controller stores most writable registers in its flash memory. Flash
+survives a reboot but wears out with every write. cFos names six registers
+that are **not** stored in flash. These volatile values are meant to be
+changed while charging.
+
+| | Volatile | Flash |
+| --- | --- | --- |
+| Write as often as you like | ✅ e.g. every few seconds from a surplus automation | ❌ set once, then leave alone |
+| Survives a wallbox reboot or power cut | ❌ falls back to its default | ✅ |
+| Shown in Home Assistant | as normal controls (except the cable override) | disabled by default, under *Configuration* |
+
+### The volatile values
+
+**Charging current limit** (8093, number)
+- The most current the vehicle may draw, 6–32 A in 0.1 A steps. The register
+  would accept up to 63 A; the UI stops at 32 A, the maximum of a 22 kW
+  wallbox.
+- The model can cap it lower; for example, the 11 kW Power Brain wallbox
+  limits it to 16 A. The cable rating (8090) and the vehicle itself can also
+  lower what is actually drawn. **Signaled charging current** (8095) shows
+  what the wallbox currently offers the vehicle.
+- After a reboot: **Default charging current limit** (8081).
+- This is the value for solar surplus charging and load management.
+
+**Charging enabled** (8094, switch)
+- On allows charging, off stops it. The vehicle stays plugged in. Most
+  vehicles resume charging when it is switched on again; one that has gone to
+  sleep may need **Wake up vehicle**.
+- After a reboot: **Default charging enabled** (8082).
+
+**Phase mode** (8087, select)
+- Charges through the 3-phase contactor (`3 phases`) or the 1-phase contactor
+  (`1 phase`). On one phase, 6 A is about 1.4 kW instead of about 4.1 kW, so
+  solar charging can start at a lower surplus.
+- Needs controller Rev. F or later. The entity only exists if the wallbox
+  reports phase switching as allowed (8113 bit 8).
+- It is volatile, but it switches a physical contactor. Leave a few minutes
+  between switches rather than following every cloud.
+- The register documentation does not say what it falls back to after a
+  reboot.
+
+**Relay 2** (8088, switch)
+- Switches the controller's second relay, if one is fitted (8113 bits 9–10).
+  Needs controller Rev. F or later.
+- It only switches on while relay 1 is off.
+- Like the phase mode, it moves a physical relay.
+- The register documentation does not say what it falls back to after a
+  reboot.
+
+**Cable current override** (8091, number, disabled by default)
+- Replaces the current rating the wallbox detects from the plugged cable
+  (8090, proximity pilot). This is for special cases, such as a cable whose
+  rating the wallbox cannot detect.
+- **Never set it higher than the cable is rated for**: the rating keeps the
+  cable from overheating.
+- After a reboot: **Default cable current override** (8080).
+
+**Wake up vehicle** (8086, button)
+- Disconnects the control pilot for 5 s. The vehicle sees this as unplugging
+  and plugging in again, which wakes many vehicles that went to sleep before
+  charging started.
+
+Because volatile values are lost on a reboot, an automation that depends on
+one should apply it again when the wallbox comes back. For example, trigger
+when **Charging state** changes from `unavailable`.
+
+### The flash values
+
+These are the power-on defaults (8080–8082), the fail-safe (8083–8085) and,
+on the S0 meters, the pulses per kWh, the nominal voltages and the counter
+resets. The integration protects them:
+
+- Their entities are **disabled by default** and listed under
+  *Configuration*.
+- The integration does not write a value that would not change.
+
+Set them once to suit your installation, and do not change them from
+automations.
 
 ## Requirements
 
@@ -140,12 +226,10 @@ for running the wallbox under an *external* charging manager. The exact
 setting depends on your firmware; see the [cFos documentation][cfos-docs].
 Then:
 
-- Charging current limit, Charging enabled, Phase mode and Relay 2 are
-  **volatile**. They can be written as often as needed and are not stored in
-  flash.
-- After a reboot of the wallbox they fall back to the **Default charging
-  current limit**, **Default cable current override** and **Default charging
-  enabled** settings.
+- Charging current limit, Charging enabled, Phase mode and Relay 2 can be
+  written as often as needed. After a reboot they fall back to their
+  defaults; see
+  [The volatile values](#the-volatile-values).
 
 ### Which one applies to me?
 
@@ -161,15 +245,7 @@ has arrived for **Fail-safe timeout** (8083, 300 s by default). 0 A stops
 charging. The integration polls every 10 s by default, and every poll counts
 as activity. The fail-safe therefore triggers only when Home Assistant is down
 or cannot reach the wallbox. Set the fail-safe current to what should happen
-then.
-
-### Flash wear
-
-Registers other than the volatile ones above are written to the
-controller's flash memory, which wears with every write. Their entities are
-**disabled by default** and listed under *Configuration*. The integration
-skips writes that would not change the value. Do not change them from
-frequent automations.
+then. Both fail-safe values are stored in flash: set them once.
 
 ## Example: follow solar surplus
 
