@@ -1,0 +1,35 @@
+# Development tooling only. The integration ships through HACS from
+# custom_components/cfos_powerbrain; this file is not a package definition.
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "D", "SIM", "RUF"]
+ignore = [
+    "D107", # the class docstring covers __init__
+    "D401", # docstrings name things as often as they command
+    "E501", # the formatter owns line length
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D100", "D103", "D104"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+known-first-party = ["custom_components"]
+combine-as-imports = true
+
+[tool.mypy]
+python_version = "3.14"
+files = ["custom_components/cfos_powerbrain/cfos_modbus"]
+strict = true
