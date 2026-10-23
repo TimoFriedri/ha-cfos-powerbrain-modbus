@@ -1,4 +1,4 @@
-"""Coded register values of the cFos Power Brain."""
+"""Coded register values of the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 

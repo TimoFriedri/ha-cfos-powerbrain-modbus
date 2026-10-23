@@ -1,4 +1,4 @@
-"""Talk to a cFos Power Brain wallbox over Modbus.
+"""Talk to a cFos Power Brain Wallbox over Modbus.
 
 A standalone device library built on ``modbus-connection``. It takes a
 ``ModbusUnit`` and knows nothing about Home Assistant, so it can move to its

@@ -11,6 +11,7 @@ from modbus_connection import (
     ModbusTimeoutError,
 )
 from modbus_connection.mock import MockModbusConnection
+import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
@@ -22,7 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 
 from custom_components.cfos_powerbrain.const import CONF_S0_METERS, DOMAIN
-from tests.integration.conftest import ReopenableMockConnection
+from tests.integration.conftest import ENTRY_DATA, ReopenableMockConnection
 from tests.registers import SERIAL
 
 
@@ -90,7 +91,7 @@ async def test_refused_settings_block_does_not_block_setup(
     await hass.async_block_till_done()
 
     assert config_entry.state is ConfigEntryState.LOADED
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
 
 
 async def test_outage_and_recovery(
@@ -100,23 +101,29 @@ async def test_outage_and_recovery(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     unit = mock_modbus[4701].for_unit(1)
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
 
     unit.fail_requests(ModbusTimeoutError("no answer"))
     freezer.tick(timedelta(seconds=11))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.cfos_power_brain_power").state == STATE_UNAVAILABLE
+    assert (
+        hass.states.get("sensor.cfos_power_brain_wallbox_power").state
+        == STATE_UNAVAILABLE
+    )
     # A lifetime total keeps its value, so statistics have no gap.
-    assert hass.states.get("sensor.cfos_power_brain_total_energy").state == "1234.567"
+    assert (
+        hass.states.get("sensor.cfos_power_brain_wallbox_total_energy").state
+        == "1234.567"
+    )
 
     unit.fail_requests(None)
     freezer.tick(timedelta(seconds=11))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
 
 
 async def test_s0_meters(
@@ -161,4 +168,50 @@ async def test_unanswering_s0_meter_does_not_block_setup(
 
     assert config_entry.state is ConfigEntryState.LOADED
     assert hass.states.get("sensor.s0_meter_1_power").state == STATE_UNAVAILABLE
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
+
+
+@pytest.mark.parametrize(
+    ("title", "migrated"),
+    [
+        ("cFos Power Brain", "cFos Power Brain Wallbox"),
+        ("Garage wallbox", "Garage wallbox"),  # a title the user chose stays
+    ],
+)
+async def test_migrate_title(
+    hass: HomeAssistant,
+    mock_modbus: dict[int, MockModbusConnection],
+    device_registry: dr.DeviceRegistry,
+    title: str,
+    migrated: str,
+) -> None:
+    """Entries from before 0.3.0 take the cFos product name."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=SERIAL,
+        data=ENTRY_DATA,
+        title=title,
+        version=1,
+        minor_version=1,
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.minor_version == 2
+    assert entry.title == migrated
+    device = device_registry.async_get_device_by_identifier(
+        (DOMAIN, SERIAL), entry.entry_id
+    )
+    assert device is not None
+    assert device.name == migrated
+
+
+async def test_entry_from_a_newer_version_is_refused(
+    hass: HomeAssistant, mock_modbus: dict[int, MockModbusConnection]
+) -> None:
+    entry = MockConfigEntry(domain=DOMAIN, unique_id=SERIAL, data=ENTRY_DATA, version=2)
+    entry.add_to_hass(hass)
+    assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.MIGRATION_ERROR

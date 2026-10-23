@@ -1,4 +1,4 @@
-"""Config flow for the cFos Power Brain."""
+"""Config flow for the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 
@@ -102,9 +102,10 @@ async def _async_probe(hass: HomeAssistant, data: dict[str, Any]) -> str:
 
 
 class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for the cFos Power Brain."""
+    """Handle a config flow for the cFos Power Brain Wallbox."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     @staticmethod
     @callback

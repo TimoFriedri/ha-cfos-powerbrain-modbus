@@ -7,7 +7,7 @@
     },
     "error": {
       "cannot_connect": "Verbindung fehlgeschlagen: {error}",
-      "not_cfos": "Das Gerät antwortet, ist aber kein cFos Power Brain.",
+      "not_cfos": "Das Gerät antwortet, ist aber keine cFos Power Brain Wallbox und kein cFos Power Brain Controller.",
       "unknown": "Unerwarteter Fehler, siehe Protokoll."
     },
     "step": {
@@ -37,13 +37,13 @@
           "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst.",
           "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1)."
         },
-        "description": "Eine cFos Power Brain Wallbox über Modbus TCP verbinden. Steuert der eingebaute Lademanager diese Wallbox, kann er von Home Assistant geschriebene Werte überschreiben; siehe Dokumentation."
+        "description": "Eine cFos Power Brain Wallbox über Modbus TCP verbinden. Steuert der eingebaute cFos Charging Manager diese Wallbox, kann er von Home Assistant geschriebene Werte überschreiben; siehe Dokumentation."
       }
     }
   },
   "device": {
     "charging_manager": {
-      "name": "cFos Lademanager"
+      "name": "cFos Charging Manager"
     },
     "s0_meter": {
       "name": "S0-Zähler {number}"
@@ -228,10 +228,10 @@
   },
   "exceptions": {
     "charging_manager_not_enabled": {
-      "message": "Der Lademanager ist für {title} nicht aktiviert. In den Optionen der Integration aktivieren."
+      "message": "Der Charging Manager ist für {title} nicht aktiviert. In den Optionen der Integration aktivieren."
     },
     "charging_manager_unavailable": {
-      "message": "Der Lademanager kann nicht gelesen werden: {error}"
+      "message": "Der Charging Manager kann nicht gelesen werden: {error}"
     },
     "communication_error": {
       "message": "Fehler bei der Kommunikation mit der Wallbox: {error}"
@@ -240,16 +240,16 @@
       "message": "Die Wallbox akzeptiert diesen Wert nicht: {error}"
     },
     "models_moved": {
-      "message": "Die SunSpec-Modelle des Lademanagers haben sich verschoben; wird neu eingerichtet."
+      "message": "Die SunSpec-Modelle des Charging Managers haben sich verschoben; wird neu eingerichtet."
     },
     "no_component_answered": {
       "message": "Die Wallbox hat auf keine Registerabfrage geantwortet."
     },
     "unknown_variable": {
-      "message": "Der Lademanager hat keine Variable „{name}“. Seine Variablen: {names}."
+      "message": "Der Charging Manager hat keine Variable „{name}“. Seine Variablen: {names}."
     },
     "unsupported_device": {
-      "message": "Das Gerät meldet sich nicht als cFos Power Brain."
+      "message": "Das Gerät meldet sich nicht als cFos Power Brain Wallbox oder Controller."
     },
     "write_failed": {
       "message": "Schreiben an die Wallbox fehlgeschlagen: {error}"
@@ -257,21 +257,21 @@
   },
   "options": {
     "error": {
-      "charging_manager_cannot_connect": "Verbindung zum Lademanager fehlgeschlagen: {error}",
-      "charging_manager_not_found": "Der SunSpec-Server des Lademanagers antwortet unter diesem Port und dieser Modbus-ID nicht. Unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Lademanagers einschalten."
+      "charging_manager_cannot_connect": "Verbindung zum Charging Manager fehlgeschlagen: {error}",
+      "charging_manager_not_found": "Der SunSpec-Server des Charging Managers antwortet unter diesem Port und dieser Modbus-ID nicht. Unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Charging Managers einschalten."
     },
     "step": {
       "init": {
         "data": {
-          "charging_manager": "Lademanager",
-          "charging_manager_port": "Port des Lademanagers",
-          "charging_manager_unit_id": "Modbus-ID des Lademanagers",
+          "charging_manager": "Charging Manager",
+          "charging_manager_port": "Port des Charging Managers",
+          "charging_manager_unit_id": "Modbus-ID des Charging Managers",
           "s0_meters": "S0-Zähler",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
-          "charging_manager": "Fügt den eingebauten Lademanager als eigenes Gerät hinzu, gelesen und gesteuert über seinen SunSpec-Modbus-Server. Den Server zuerst unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Lademanagers einschalten.",
-          "charging_manager_port": "Unter „SunSpec Adress-Einstellungen“ eingestellter TCP-Port (502 beim Power Brain).",
+          "charging_manager": "Fügt den eingebauten cFos Charging Manager als eigenes Gerät hinzu, gelesen und gesteuert über seinen SunSpec-Modbus-Server. Den Server zuerst unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Charging Managers einschalten.",
+          "charging_manager_port": "Unter „SunSpec Adress-Einstellungen“ eingestellter TCP-Port (502 bei der cFos Power Brain Wallbox).",
           "charging_manager_unit_id": "Unter „SunSpec Adress-Einstellungen“ eingestellte Modbus-ID.",
           "s0_meters": "S0-Zählereingänge des Controllers, die als Geräte angelegt werden. Sie werden über denselben Host auf TCP-Port 4702 (Slave-ID 2) und 4703 (Slave-ID 3) erreicht.",
           "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst."
@@ -289,14 +289,14 @@
   },
   "services": {
     "set_charging_manager_variable": {
-      "description": "Gibt einer Variablen des Lademanagers einen festen Wert. Das ersetzt eine Formel der Variablen. Der Wert wird nicht gespeichert und darf beliebig oft gesetzt werden.",
+      "description": "Gibt einer Variablen des Charging Managers einen festen Wert. Das ersetzt eine Formel der Variablen. Der Wert wird nicht gespeichert und darf beliebig oft gesetzt werden.",
       "fields": {
         "config_entry_id": {
-          "description": "Die Wallbox, deren Lademanager verwendet wird. Nur bei mehr als einer Wallbox nötig.",
+          "description": "Die Wallbox, deren Charging Manager verwendet wird. Nur bei mehr als einer Wallbox nötig.",
           "name": "Wallbox"
         },
         "name": {
-          "description": "Name der Variablen, wie im Lademanager angelegt.",
+          "description": "Name der Variablen, wie im Charging Manager angelegt.",
           "name": "Name"
         },
         "value": {
@@ -304,7 +304,7 @@
           "name": "Wert"
         }
       },
-      "name": "Lademanager-Variable setzen"
+      "name": "Charging-Manager-Variable setzen"
     }
   }
 }

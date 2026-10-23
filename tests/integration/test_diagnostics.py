@@ -47,7 +47,7 @@ async def test_session_energy_survives_restart(
         hass,
         [
             (
-                State("sensor.cfos_power_brain_session_energy", "1.9"),
+                State("sensor.cfos_power_brain_wallbox_session_energy", "1.9"),
                 {
                     "native_value": 1.9,
                     "start_energy": 1_234_567 - 2000,
@@ -60,4 +60,6 @@ async def test_session_energy_survives_restart(
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert hass.states.get("sensor.cfos_power_brain_session_energy").state == "2.0"
+    assert (
+        hass.states.get("sensor.cfos_power_brain_wallbox_session_energy").state == "2.0"
+    )

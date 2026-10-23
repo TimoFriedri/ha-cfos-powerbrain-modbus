@@ -1,4 +1,4 @@
-"""Diagnostics of the cFos Power Brain: the raw register maps."""
+"""Diagnostics of the cFos Power Brain Wallbox: the raw register maps."""
 
 from __future__ import annotations
 

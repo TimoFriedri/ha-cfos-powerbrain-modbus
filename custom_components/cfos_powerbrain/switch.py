@@ -1,4 +1,4 @@
-"""Switches of the cFos Power Brain."""
+"""Switches of the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 

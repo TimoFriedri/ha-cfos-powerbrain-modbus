@@ -1,4 +1,4 @@
-"""Polling of the cFos Power Brain's Modbus units."""
+"""Polling of the cFos Power Brain Wallbox's Modbus units."""
 
 from __future__ import annotations
 

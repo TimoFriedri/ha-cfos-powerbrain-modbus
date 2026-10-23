@@ -1,4 +1,4 @@
-"""The cFos Power Brain integration, over Modbus TCP."""
+"""The cFos Power Brain Wallbox integration, over Modbus TCP."""
 
 from __future__ import annotations
 
@@ -29,8 +29,10 @@ from .const import (
     CONF_CHARGING_MANAGER_UNIT_ID,
     CONF_S0_METERS,
     CONF_UNIT_ID,
+    DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    FORMER_DEFAULT_NAME,
     MANUFACTURER,
     SETTINGS_SCAN_INTERVAL,
 )
@@ -57,8 +59,20 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
+    """Migrate an entry from an older version of the integration."""
+    if entry.version > 1:
+        return False  # from a newer version; downgrading is not supported
+    if entry.minor_version < 2:
+        # 0.3.0 names the device like cFos does. A title the user chose stays;
+        # entity IDs stay as they are, so automations keep working.
+        title = DEFAULT_NAME if entry.title == FORMER_DEFAULT_NAME else entry.title
+        hass.config_entries.async_update_entry(entry, title=title, minor_version=2)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
-    """Set up a cFos Power Brain from a config entry."""
+    """Set up a cFos Power Brain Wallbox from a config entry."""
     serial = entry.unique_id
     assert serial is not None
     host: str = entry.data[CONF_HOST]
@@ -101,7 +115,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
             device_info=DeviceInfo(
                 identifiers={(DOMAIN, serial)},
                 manufacturer=MANUFACTURER,
-                model=identity.name or "Power Brain",
+                model=identity.name or "cFos Power Brain Controller",
                 name=entry.title,
                 serial_number=serial,
                 sw_version=identity.firmware_version,

@@ -39,7 +39,7 @@ async def test_user_flow(
         result["flow_id"], {**ENTRY_DATA, CONF_SCAN_INTERVAL: 5}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["title"] == "cFos Power Brain"
+    assert result["title"] == "cFos Power Brain Wallbox"
     assert result["data"] == ENTRY_DATA
     assert result["options"] == {CONF_SCAN_INTERVAL: 5}
     assert result["result"].unique_id == SERIAL

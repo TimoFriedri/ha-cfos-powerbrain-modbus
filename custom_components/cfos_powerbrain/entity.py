@@ -1,4 +1,4 @@
-"""Base entity for the cFos Power Brain."""
+"""Base entity for the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 

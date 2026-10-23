@@ -54,38 +54,49 @@ async def poll(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
 @pytest.mark.usefixtures("init_integration")
 async def test_states(hass: HomeAssistant) -> None:
     expected = {
-        "sensor.cfos_power_brain_charging_state": "charging",
-        "sensor.cfos_power_brain_signaled_charging_current": "16.0",
-        "sensor.cfos_power_brain_power": "7360",
-        "sensor.cfos_power_brain_total_energy": "1234.567",
-        "sensor.cfos_power_brain_current_l1": "10.7",
-        "sensor.cfos_power_brain_current_l3": "10.8",
-        "sensor.cfos_power_brain_active_phases": "3",
-        "sensor.cfos_power_brain_session_energy": "0.0",
-        "sensor.cfos_power_brain_controller_temperature": "35",
-        "binary_sensor.cfos_power_brain_vehicle_connected": STATE_ON,
-        "binary_sensor.cfos_power_brain_charging": STATE_ON,
-        "binary_sensor.cfos_power_brain_problem": STATE_OFF,
-        "switch.cfos_power_brain_charging_enabled": STATE_ON,
-        "number.cfos_power_brain_charging_current_limit": "16.0",
-        "select.cfos_power_brain_phase_mode": "three_phase",
+        "sensor.cfos_power_brain_wallbox_charging_state": "charging",
+        "sensor.cfos_power_brain_wallbox_signaled_charging_current": "16.0",
+        "sensor.cfos_power_brain_wallbox_power": "7360",
+        "sensor.cfos_power_brain_wallbox_total_energy": "1234.567",
+        "sensor.cfos_power_brain_wallbox_current_l1": "10.7",
+        "sensor.cfos_power_brain_wallbox_current_l3": "10.8",
+        "sensor.cfos_power_brain_wallbox_active_phases": "3",
+        "sensor.cfos_power_brain_wallbox_session_energy": "0.0",
+        "sensor.cfos_power_brain_wallbox_controller_temperature": "35",
+        "binary_sensor.cfos_power_brain_wallbox_vehicle_connected": STATE_ON,
+        "binary_sensor.cfos_power_brain_wallbox_charging": STATE_ON,
+        "binary_sensor.cfos_power_brain_wallbox_problem": STATE_OFF,
+        "switch.cfos_power_brain_wallbox_charging_enabled": STATE_ON,
+        "number.cfos_power_brain_wallbox_charging_current_limit": "16.0",
+        "select.cfos_power_brain_wallbox_phase_mode": "three_phase",
     }
     for entity_id, state in expected.items():
         assert (current := hass.states.get(entity_id)) is not None, entity_id
         assert current.state == state, entity_id
 
     # Settings that go to flash are hidden until enabled.
-    assert hass.states.get("number.cfos_power_brain_fail_safe_current") is None
-    assert hass.states.get("sensor.cfos_power_brain_last_rfid") is None
+    assert hass.states.get("number.cfos_power_brain_wallbox_fail_safe_current") is None
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_last_rfid") is None
 
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "init_integration")
 async def test_hidden_entities(hass: HomeAssistant) -> None:
-    assert hass.states.get("sensor.cfos_power_brain_last_rfid").state == "04A1B2C3D4"
-    assert hass.states.get("number.cfos_power_brain_fail_safe_current").state == "6.0"
-    assert hass.states.get("number.cfos_power_brain_fail_safe_timeout").state == "300"
     assert (
-        hass.states.get("switch.cfos_power_brain_default_charging_enabled").state
+        hass.states.get("sensor.cfos_power_brain_wallbox_last_rfid").state
+        == "04A1B2C3D4"
+    )
+    assert (
+        hass.states.get("number.cfos_power_brain_wallbox_fail_safe_current").state
+        == "6.0"
+    )
+    assert (
+        hass.states.get("number.cfos_power_brain_wallbox_fail_safe_timeout").state
+        == "300"
+    )
+    assert (
+        hass.states.get(
+            "switch.cfos_power_brain_wallbox_default_charging_enabled"
+        ).state
         == STATE_ON
     )
 
@@ -108,11 +119,11 @@ async def test_optional_entities(
             entity_registry, config_entry.entry_id
         )
     }
-    assert "sensor.cfos_power_brain_power" not in entity_ids
-    assert "sensor.cfos_power_brain_session_energy" not in entity_ids
-    assert "select.cfos_power_brain_phase_mode" not in entity_ids
-    assert "switch.cfos_power_brain_relay_2" not in entity_ids
-    assert "switch.cfos_power_brain_charging_enabled" in entity_ids
+    assert "sensor.cfos_power_brain_wallbox_power" not in entity_ids
+    assert "sensor.cfos_power_brain_wallbox_session_energy" not in entity_ids
+    assert "select.cfos_power_brain_wallbox_phase_mode" not in entity_ids
+    assert "switch.cfos_power_brain_wallbox_relay_2" not in entity_ids
+    assert "switch.cfos_power_brain_wallbox_charging_enabled" in entity_ids
 
 
 async def test_relay2_switch(
@@ -127,7 +138,7 @@ async def test_relay2_switch(
     await hass.services.async_call(
         "switch",
         SERVICE_TURN_ON,
-        {ATTR_ENTITY_ID: "switch.cfos_power_brain_relay_2"},
+        {ATTR_ENTITY_ID: "switch.cfos_power_brain_wallbox_relay_2"},
         blocking=True,
     )
     assert writes == [(8088, [1])]
@@ -143,7 +154,7 @@ async def test_controls_write_volatile_registers(
         "number",
         SERVICE_SET_VALUE,
         {
-            ATTR_ENTITY_ID: "number.cfos_power_brain_charging_current_limit",
+            ATTR_ENTITY_ID: "number.cfos_power_brain_wallbox_charging_current_limit",
             ATTR_VALUE: 10.7,
         },
         blocking=True,
@@ -151,14 +162,14 @@ async def test_controls_write_volatile_registers(
     await hass.services.async_call(
         "switch",
         SERVICE_TURN_OFF,
-        {ATTR_ENTITY_ID: "switch.cfos_power_brain_charging_enabled"},
+        {ATTR_ENTITY_ID: "switch.cfos_power_brain_wallbox_charging_enabled"},
         blocking=True,
     )
     await hass.services.async_call(
         "select",
         SERVICE_SELECT_OPTION,
         {
-            ATTR_ENTITY_ID: "select.cfos_power_brain_phase_mode",
+            ATTR_ENTITY_ID: "select.cfos_power_brain_wallbox_phase_mode",
             ATTR_OPTION: "single_phase",
         },
         blocking=True,
@@ -166,17 +177,20 @@ async def test_controls_write_volatile_registers(
     await hass.services.async_call(
         "button",
         SERVICE_PRESS,
-        {ATTR_ENTITY_ID: "button.cfos_power_brain_wake_up_vehicle"},
+        {ATTR_ENTITY_ID: "button.cfos_power_brain_wallbox_wake_up_vehicle"},
         blocking=True,
     )
     await hass.async_block_till_done()
 
     assert writes == [(8093, [107]), (8094, [0]), (8087, [1]), (8086, [5])]
     assert (
-        hass.states.get("number.cfos_power_brain_charging_current_limit").state
+        hass.states.get("number.cfos_power_brain_wallbox_charging_current_limit").state
         == "10.7"
     )
-    assert hass.states.get("switch.cfos_power_brain_charging_enabled").state == "off"
+    assert (
+        hass.states.get("switch.cfos_power_brain_wallbox_charging_enabled").state
+        == "off"
+    )
 
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "init_integration")
@@ -184,7 +198,7 @@ async def test_flash_settings_skip_unchanged_writes(
     hass: HomeAssistant, evse: MockModbusUnit
 ) -> None:
     writes = record_writes(evse)
-    entity_id = "number.cfos_power_brain_default_charging_current_limit"
+    entity_id = "number.cfos_power_brain_wallbox_default_charging_current_limit"
 
     for value in (16.0, 10.0):
         await hass.services.async_call(
@@ -206,7 +220,7 @@ async def test_rejected_value(hass: HomeAssistant, evse: MockModbusUnit) -> None
             "number",
             SERVICE_SET_VALUE,
             {
-                ATTR_ENTITY_ID: "number.cfos_power_brain_cable_current_override",
+                ATTR_ENTITY_ID: "number.cfos_power_brain_wallbox_cable_current_override",
                 ATTR_VALUE: 3,
             },
             blocking=True,
@@ -222,7 +236,7 @@ async def test_failed_write(hass: HomeAssistant, evse: MockModbusUnit) -> None:
         await hass.services.async_call(
             "switch",
             SERVICE_TURN_OFF,
-            {ATTR_ENTITY_ID: "switch.cfos_power_brain_charging_enabled"},
+            {ATTR_ENTITY_ID: "switch.cfos_power_brain_wallbox_charging_enabled"},
             blocking=True,
         )
 
@@ -231,7 +245,7 @@ async def test_failed_write(hass: HomeAssistant, evse: MockModbusUnit) -> None:
 async def test_session_energy(
     hass: HomeAssistant, evse: MockModbusUnit, freezer: FrozenDateTimeFactory
 ) -> None:
-    entity_id = "sensor.cfos_power_brain_session_energy"
+    entity_id = "sensor.cfos_power_brain_wallbox_session_energy"
     assert hass.states.get(entity_id).state == "0.0"
 
     evse.holding[8058] = words(1_234_567 + 1500, 4)
@@ -259,7 +273,7 @@ async def test_session_energy(
 async def test_total_energy_ignores_glitch(
     hass: HomeAssistant, evse: MockModbusUnit, freezer: FrozenDateTimeFactory
 ) -> None:
-    entity_id = "sensor.cfos_power_brain_total_energy"
+    entity_id = "sensor.cfos_power_brain_wallbox_total_energy"
 
     # 0 Wh right after a controller restart reads as unknown, not a reset.
     evse.holding[8058] = words(0, 4)

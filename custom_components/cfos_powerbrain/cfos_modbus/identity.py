@@ -23,7 +23,7 @@ class Identity(Component):
     _vendor_low = raw_register(8001)
 
     product_id = integer(8002, signed=False)
-    """Product id, 1 for the Power Brain."""
+    """Product id, 1 for the cFos Power Brain Controller."""
 
     device_id = integer(8003, signed=False)
     """Which device inside the product answers: EVSE or one of the S0 meters."""

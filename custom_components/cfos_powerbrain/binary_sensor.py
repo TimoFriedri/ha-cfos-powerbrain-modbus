@@ -1,4 +1,4 @@
-"""Binary sensors of the cFos Power Brain."""
+"""Binary sensors of the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 

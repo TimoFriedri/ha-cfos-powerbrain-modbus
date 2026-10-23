@@ -1,4 +1,4 @@
-"""Actions of the cFos Power Brain integration."""
+"""Actions of the cFos Power Brain Wallbox integration."""
 
 from __future__ import annotations
 

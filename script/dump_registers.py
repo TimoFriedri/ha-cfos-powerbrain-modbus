@@ -1,4 +1,4 @@
-"""Read a cFos Power Brain over Modbus TCP and print what the integration sees.
+"""Read a cFos Power Brain Wallbox over Modbus TCP and print what the integration sees.
 
 Needs only Python 3.12+ and modbus-connection, no Home Assistant:
 
@@ -7,7 +7,7 @@ Needs only Python 3.12+ and modbus-connection, no Home Assistant:
     python script/dump_registers.py 192.168.1.50 --s0 1 --raw
     python script/dump_registers.py 192.168.1.50 --charging-manager --raw
 
-The Charging Manager is read through its SunSpec server, which has to be
+The cFos Charging Manager is read through its SunSpec server, which has to be
 switched on under "SunSpec address settings" in its configuration.
 
 Attach the output to an issue when a value looks wrong. It contains the serial

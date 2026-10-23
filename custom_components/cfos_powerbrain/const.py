@@ -1,4 +1,4 @@
-"""Constants for the cFos Power Brain integration."""
+"""Constants for the cFos Power Brain Wallbox integration."""
 
 from __future__ import annotations
 
@@ -7,7 +7,10 @@ from typing import Final
 
 DOMAIN: Final = "cfos_powerbrain"
 MANUFACTURER: Final = "cFos"
-DEFAULT_NAME: Final = "cFos Power Brain"
+DEFAULT_NAME: Final = "cFos Power Brain Wallbox"
+
+FORMER_DEFAULT_NAME: Final = "cFos Power Brain"
+"""The default title before 0.3.0, renamed by the config entry migration."""
 
 CONF_UNIT_ID: Final = "unit_id"
 CONF_S0_METERS: Final = "s0_meters"

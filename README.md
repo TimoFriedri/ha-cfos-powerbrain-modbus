@@ -3,30 +3,31 @@
 > developed, endorsed or supported by cFos Software GmbH. For problems with
 > it, open an [issue][issues] here, not with cFos support.
 
-# cFos Power Brain (Modbus) for Home Assistant
+# cFos Power Brain Wallbox (Modbus) for Home Assistant
 
 [![HACS Custom][hacs-badge]][hacs]
 [![Validate][validate-badge]][validate]
 [![Tests][tests-badge]][tests]
 
-Monitor and control a **cFos Power Brain** wallbox (or Power Brain controller)
-from Home Assistant over **Modbus TCP**, using the
+Monitor and control a **cFos Power Brain Wallbox**, or a wallbox built around
+the **cFos Power Brain Controller**, from Home Assistant over **Modbus TCP**,
+using the
 [Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
 
 [cFos Software GmbH](https://www.cfos-emobility.de) makes the cFos Power
-Brain wallboxes and the Power Brain controller, which other wallbox makers
-build in. Each one has the cFos Charging Manager built in, which does load
+Brain Wallbox and the cFos Power Brain Controller, which other wallbox makers
+build in. Both have the **cFos Charging Manager** built in, which does load
 management, solar surplus charging and charging rules for one or many
 charging points. This integration reads and controls the charging point, its
-meters and the Charging Manager, all over Modbus.
+meters and the cFos Charging Manager, all over Modbus.
 
 The integration asks Home Assistant's `modbus` integration for a shared
 connection to the wallbox (`modbus.async_get_unit`), so it coexists with any
 other integration talking to the same device. You set it up in the UI and
 write no YAML.
 
-> **Status:** the charging point runs on a real cFos Power Brain Solar
-> wallbox. The Charging Manager device is tested against a simulated SunSpec
+> **Status:** the charging point runs on a real cFos Power Brain Wallbox.
+> The cFos Charging Manager device is tested against a simulated SunSpec
 > server built from the cFos documentation, not yet on hardware. Please
 > report what your wallbox shows; see [Reporting problems](#reporting-problems).
 
@@ -127,7 +128,7 @@ changed while charging.
 - The most current the vehicle may draw, 6–32 A in 0.1 A steps. The register
   would accept up to 63 A; the UI stops at 32 A, the maximum of a 22 kW
   wallbox.
-- The model can cap it lower; for example, the 11 kW Power Brain wallbox
+- The model can cap it lower; for example, the 11 kW cFos Power Brain Wallbox
   limits it to 16 A. The cable rating (8090) and the vehicle itself can also
   lower what is actually drawn. **Signaled charging current** (8095) shows
   what the wallbox currently offers the vehicle.
@@ -239,7 +240,8 @@ Manager has.
 ## Requirements
 
 - Home Assistant **2026.10.0** or newer.
-- A cFos Power Brain wallbox or controller reachable on your network, with
+- A cFos Power Brain Wallbox, or a wallbox with the cFos Power Brain
+  Controller, reachable on your network, with
   Modbus TCP available on ports 4701 (wallbox) and, for the S0 meters, 4702
   and 4703.
 - A fixed IP address for the wallbox, for example a DHCP reservation in your
@@ -254,16 +256,32 @@ Manager has.
 1. In HACS, open the menu → **Custom repositories**.
 2. Add `https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus` with type
    **Integration**.
-3. Install **cFos Power Brain (Modbus)** and restart Home Assistant.
+3. Install **cFos Power Brain Wallbox (Modbus)** and restart Home Assistant.
 
 ### Manual
 
 Copy `custom_components/cfos_powerbrain` into the `custom_components` folder
 of your Home Assistant configuration and restart.
 
+### Upgrading from 0.2 or earlier
+
+Version 0.3.0 uses cFos' product names: the integration is now **cFos Power
+Brain Wallbox (Modbus)**, and the Charging Manager device is **cFos Charging
+Manager** in every language.
+
+- An entry still called "cFos Power Brain" is renamed to "cFos Power Brain
+  Wallbox", and its device and entity names follow. A name you chose is
+  kept.
+- **Entity IDs stay as they are**, so your automations keep working. New
+  installations get IDs like `sensor.cfos_power_brain_wallbox_power`.
+- To give an existing installation the new IDs too, open the device and
+  rename it. Home Assistant then offers to rename its entity IDs. Update any
+  automations that use the old IDs.
+
 ## Configuration
 
-**Settings → Devices & services → Add integration → cFos Power Brain (Modbus)**,
+**Settings → Devices & services → Add integration → cFos Power Brain Wallbox
+(Modbus)**,
 then enter:
 
 | Field | Default | |
@@ -291,8 +309,8 @@ It can run side by side with the HTTP-API-based
 ### Setting up the Charging Manager
 
 1. In the Charging Manager's configuration, under **SunSpec address
-   settings**, enter a TCP port and a Modbus ID. On the Power Brain the port
-   is 502. This switches on the Charging Manager's SunSpec Modbus server.
+   settings**, enter a TCP port and a Modbus ID. On the cFos Power Brain
+   Wallbox the port is 502. This switches on the Charging Manager's SunSpec Modbus server.
 2. In the integration's options, switch on **Charging Manager** and enter the
    same port and Modbus ID. The integration checks that the server answers
    before it saves the options.
@@ -306,10 +324,11 @@ Modbus ID + 1. The integration does not read that list yet.
 
 ## Removal
 
-1. **Settings → Devices & services → cFos Power Brain (Modbus) → ⋮ →
+1. **Settings → Devices & services → cFos Power Brain Wallbox (Modbus) → ⋮ →
    Delete.** This removes the devices and entities and closes the Modbus
    connections.
-2. Installed through HACS: **HACS → cFos Power Brain (Modbus) → ⋮ → Remove**,
+2. Installed through HACS: **HACS → cFos Power Brain Wallbox (Modbus) → ⋮ →
+   Remove**,
    then restart Home Assistant. Installed manually: delete
    `custom_components/cfos_powerbrain` and restart.
 
@@ -329,7 +348,7 @@ What stays on the wallbox afterwards:
 
 ## Home Assistant control and the cFos Charging Manager
 
-The Power Brain wallbox has the cFos Charging Manager built in. What happens
+The cFos Power Brain Wallbox has the cFos Charging Manager built in. What happens
 to values that Home Assistant writes depends on whether that Charging Manager
 manages the wallbox's own charging point.
 
@@ -398,7 +417,7 @@ automation:
         entity_id: sensor.pv_surplus_power   # your surplus in W
     conditions:
       - condition: state
-        entity_id: binary_sensor.cfos_power_brain_vehicle_connected
+        entity_id: binary_sensor.cfos_power_brain_wallbox_vehicle_connected
         state: "on"
     actions:
       - variables:
@@ -407,16 +426,16 @@ automation:
         then:
           - action: number.set_value
             target:
-              entity_id: number.cfos_power_brain_charging_current_limit
+              entity_id: number.cfos_power_brain_wallbox_charging_current_limit
             data:
               value: "{{ [amps, 16] | min }}"
           - action: switch.turn_on
             target:
-              entity_id: switch.cfos_power_brain_charging_enabled
+              entity_id: switch.cfos_power_brain_wallbox_charging_enabled
         else:
           - action: switch.turn_off
             target:
-              entity_id: switch.cfos_power_brain_charging_enabled
+              entity_id: switch.cfos_power_brain_wallbox_charging_enabled
 ```
 
 This only works when Home Assistant controls the wallbox; see
@@ -456,7 +475,7 @@ counterpart:
 ## Reporting problems
 
 1. Download diagnostics: **Settings → Devices & services → cFos Power Brain
-   (Modbus) → ⋮ → Download diagnostics**. It contains the raw value of every
+   Wallbox (Modbus) → ⋮ → Download diagnostics**. It contains the raw value of every
    register the integration reads, with the serial numbers and RFID tag
    redacted. For the Charging Manager it also lists the SunSpec models found
    and their addresses.

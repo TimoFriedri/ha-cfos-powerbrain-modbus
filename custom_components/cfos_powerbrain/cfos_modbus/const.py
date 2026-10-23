@@ -1,4 +1,4 @@
-"""Constants of the cFos Power Brain Modbus interface."""
+"""Constants of the cFos Power Brain Wallbox's Modbus interface."""
 
 from __future__ import annotations
 

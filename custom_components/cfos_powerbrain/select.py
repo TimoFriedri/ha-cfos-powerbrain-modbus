@@ -1,4 +1,4 @@
-"""Select entities of the cFos Power Brain."""
+"""Select entities of the cFos Power Brain Wallbox."""
 
 from __future__ import annotations
 

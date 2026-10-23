@@ -309,7 +309,7 @@ async def test_server_off_at_startup(
     await hass.async_block_till_done()
 
     assert config_entry.state is ConfigEntryState.LOADED
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
     assert hass.states.get("sensor.cfos_charging_manager_grid_power") is None
 
     manager_unit.fail_requests(None)
@@ -360,7 +360,7 @@ async def test_unavailable_while_unreachable(
         hass.states.get("sensor.cfos_charging_manager_grid_power").state
         == STATE_UNAVAILABLE
     )
-    assert hass.states.get("sensor.cfos_power_brain_power").state == "7360"
+    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
 
 
 async def test_diagnostics(

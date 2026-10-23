@@ -1,7 +1,7 @@
 """The Charging Manager's SunSpec Modbus server.
 
-The Charging Manager built into the Power Brain is reached separately from the
-controller's own units. Once its SunSpec server is switched on under "SunSpec
+The cFos Charging Manager built into the cFos Power Brain Wallbox and
+Controller is reached separately from the controller's own units. Once its SunSpec server is switched on under "SunSpec
 address settings" in the Charging Manager configuration, it answers on the TCP
 port and Modbus ID set there. Its values sit in SunSpec models from register
 40000 on: the common model, seven meter models, then the custom models 60000

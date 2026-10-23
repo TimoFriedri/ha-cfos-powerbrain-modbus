@@ -1,6 +1,6 @@
 {
   "domain": "cfos_powerbrain",
-  "name": "cFos Power Brain (Modbus)",
+  "name": "cFos Power Brain Wallbox (Modbus)",
   "codeowners": ["@TimoFriedri"],
   "config_flow": true,
   "dependencies": ["modbus"],
@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/issues",
   "loggers": ["modbus_connection", "tmodbus"],
   "requirements": [],
-  "version": "0.2.0"
+  "version": "0.3.0"
 }
