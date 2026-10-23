@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/TimoFriedri/ha-cfos-powerbrain-modbus/main/custom_components/cfos_powerbrain/brand/logo.png" alt="cFos eMobility" height="80">
+
 # cFos Power Brain (Modbus) for Home Assistant
 
 [![HACS Custom][hacs-badge]][hacs]
@@ -350,9 +352,11 @@ mocked.
 
 ## Disclaimer
 
-Not affiliated with or endorsed by cFos Software GmbH. "cFos" and "Power Brain"
-are their trademarks. Writing to a wallbox controls real hardware; use at your
-own risk.
+Not affiliated with or endorsed by cFos Software GmbH. "cFos", "Power Brain"
+and the cFos eMobility logo are their trademarks. The logo identifies the
+product here, as it does for the HTTP API integration in Home Assistant's
+[brands repository](https://github.com/home-assistant/brands). Writing to a
+wallbox controls real hardware; use at your own risk.
 
 [hacs]: https://hacs.xyz
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange.svg
