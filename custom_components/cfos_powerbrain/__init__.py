@@ -9,16 +9,10 @@ from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import HomeAssistant, callback, split_entity_id
-from homeassistant.helpers import (
-    config_validation as cv,
-    device_registry as dr,
-    entity_registry as er,
-    restore_state,
-)
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.util import slugify
 
 from .cfos_modbus import (
     DEFAULT_CHARGING_MANAGER_PORT,
@@ -35,10 +29,8 @@ from .const import (
     CONF_CHARGING_MANAGER_UNIT_ID,
     CONF_S0_METERS,
     CONF_UNIT_ID,
-    DEFAULT_NAME,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
-    FORMER_DEFAULT_NAME,
     MANUFACTURER,
     SETTINGS_SCAN_INTERVAL,
 )
@@ -63,59 +55,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the actions, whether or not an entry is loaded."""
     async_setup_services(hass)
     return True
-
-
-async def async_migrate_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
-    """Migrate an entry from an older version of the integration."""
-    if entry.version > 1:
-        return False  # from a newer version; downgrading is not supported
-    if entry.minor_version < 2:
-        # 0.3.0 names the device like cFos does; a title the user chose stays.
-        title = DEFAULT_NAME if entry.title == FORMER_DEFAULT_NAME else entry.title
-        hass.config_entries.async_update_entry(entry, title=title, minor_version=2)
-    if entry.minor_version < 3:
-        # The entity IDs follow the new names too. The recorder carries history
-        # and statistics over to the renamed IDs.
-        if entry.title == DEFAULT_NAME:
-            _async_rename_entity_ids(
-                hass,
-                entry,
-                f"{slugify(FORMER_DEFAULT_NAME)}_",
-                f"{slugify(DEFAULT_NAME)}_",
-            )
-        # The Charging Manager device was named "cFos Lademanager" in German.
-        _async_rename_entity_ids(
-            hass, entry, "cfos_lademanager_", "cfos_charging_manager_"
-        )
-        hass.config_entries.async_update_entry(entry, minor_version=3)
-    return True
-
-
-@callback
-def _async_rename_entity_ids(
-    hass: HomeAssistant, entry: CfosConfigEntry, old_prefix: str, new_prefix: str
-) -> None:
-    """Rename the entry's entity IDs that start with ``old_prefix``.
-
-    An ID the user changed to something else no longer starts with the prefix
-    and stays as it is, as does one whose new ID is already taken. The state
-    kept for restoring, such as a session in progress, moves along.
-    """
-    registry = er.async_get(hass)
-    restorable = restore_state.async_get(hass).last_states
-    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-        domain, object_id = split_entity_id(entity.entity_id)
-        if not object_id.startswith(old_prefix) or object_id.startswith(new_prefix):
-            continue
-        new_entity_id = f"{domain}.{new_prefix}{object_id.removeprefix(old_prefix)}"
-        if registry.async_get(new_entity_id) is not None:
-            _LOGGER.warning(
-                "Keeping %s: %s is already taken", entity.entity_id, new_entity_id
-            )
-            continue
-        registry.async_update_entity(entity.entity_id, new_entity_id=new_entity_id)
-        if (stored := restorable.pop(entity.entity_id, None)) is not None:
-            restorable[new_entity_id] = stored
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:

@@ -9,9 +9,6 @@ DOMAIN: Final = "cfos_powerbrain"
 MANUFACTURER: Final = "cFos"
 DEFAULT_NAME: Final = "cFos Power Brain Wallbox"
 
-FORMER_DEFAULT_NAME: Final = "cFos Power Brain"
-"""The default title before 0.3.0, renamed by the config entry migration."""
-
 CONF_UNIT_ID: Final = "unit_id"
 CONF_S0_METERS: Final = "s0_meters"
 CONF_CHARGING_MANAGER: Final = "charging_manager"

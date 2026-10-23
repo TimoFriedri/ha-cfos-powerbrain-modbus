@@ -265,32 +265,33 @@ of your Home Assistant configuration and restart.
 
 ### Upgrading from 0.2 or earlier
 
-> [!WARNING]
-> **Breaking change:** 0.3.0 renames entity IDs. Update the automations,
-> scripts and dashboards that use them.
+0.3.0 uses cFos' product names: the integration is now **cFos Power Brain
+Wallbox (Modbus)**, a new setup is called **cFos Power Brain Wallbox**, and
+the Charging Manager device is **cFos Charging Manager** in every language.
 
-Version 0.3.0 uses cFos' product names: the integration is now **cFos Power
-Brain Wallbox (Modbus)**, and the Charging Manager device is **cFos Charging
-Manager** in every language. On the first start after the update:
+The update migrates nothing. An existing setup keeps its title ("cFos Power
+Brain" unless you named it) and all its entity IDs, so automations, scripts
+and dashboards keep working. Only the German name of the Charging Manager
+device changes from "cFos Lademanager" to "cFos Charging Manager"; its entity
+IDs stay `…cfos_lademanager_…`.
 
-- An entry still called "cFos Power Brain" is renamed to "cFos Power Brain
-  Wallbox", and its device and entity names follow.
-- Its entity IDs are renamed to match, for example:
+A setup added with 0.3.0 takes its entity IDs from the new names:
 
-  | Before | After |
-  | --- | --- |
-  | `sensor.cfos_power_brain_power` | `sensor.cfos_power_brain_wallbox_power` |
-  | `switch.cfos_power_brain_charging_enabled` | `switch.cfos_power_brain_wallbox_charging_enabled` |
-  | `sensor.cfos_lademanager_grid_power` (German) | `sensor.cfos_charging_manager_grid_power` |
+| Set up with 0.2 or earlier | Set up with 0.3.0 |
+| --- | --- |
+| `sensor.cfos_power_brain_power` | `sensor.cfos_power_brain_wallbox_power` |
+| `switch.cfos_power_brain_charging_enabled` | `switch.cfos_power_brain_wallbox_charging_enabled` |
+| `sensor.cfos_lademanager_grid_power` (German) | `sensor.cfos_charging_manager_grid_power` |
 
-- History, long-term statistics and a charging session in progress move
-  over to the new IDs.
-- Left as they are:
-  - an entry you gave your own name, with its entity IDs;
-  - an entity ID you changed yourself;
-  - an entity ID whose new name is already taken (a warning in the log names
-    it);
-  - the S0 meters' IDs, which were never named after the wallbox.
+To move an existing setup to the new names, either
+
+- rename the wallbox device to "cFos Power Brain Wallbox" under **Settings →
+  Devices & services → Devices**; Home Assistant offers to rename its entity
+  IDs as well and moves their history along; or
+- [remove](#removal) the integration and add it again. Its entities start
+  afresh; history recorded under the old IDs stays with those.
+
+Then update the automations, scripts and dashboards that use the old IDs.
 
 ## Configuration
 
