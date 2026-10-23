@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import timedelta
-import logging
 
 from modbus_connection import ModbusTcpParams, ModbusUnit
 
@@ -35,8 +34,6 @@ from .const import (
 )
 from .coordinator import CfosConfigEntry, CfosCoordinator, CfosRuntimeData, CfosUnitData
 from .services import async_setup_services
-
-_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -155,14 +152,9 @@ async def _async_setup_charging_manager(
     if readings.last_update_success:
         await settings.async_refresh()
     else:
-        _LOGGER.warning(
-            "%s: the Charging Manager's SunSpec server does not answer yet; its "
-            "entities are added once it does",
-            entry.title,
-        )
-
-        # Its entities follow the models the scan finds, so set up again
-        # once the server answers rather than leaving them out.
+        # The coordinator has logged the failure. The entities follow the
+        # models the scan finds, so set up again once the server answers
+        # rather than leaving them out.
         @callback
         def _async_reload_once_answered() -> None:
             if readings.last_update_success:
