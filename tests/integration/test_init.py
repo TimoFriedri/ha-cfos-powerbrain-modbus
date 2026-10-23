@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import (
     IllegalDataAddressError,
@@ -13,7 +11,6 @@ from modbus_connection import (
 from modbus_connection.mock import MockModbusConnection
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
-    async_fire_time_changed,
 )
 
 from homeassistant.config_entries import ConfigEntryState
@@ -22,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.cfos_powerbrain.const import CONF_S0_METERS, DOMAIN
-from tests.integration.conftest import ENTRY_DATA, ReopenableMockConnection
+from tests.integration.conftest import ENTRY_DATA, ReopenableMockConnection, poll
 from tests.registers import SERIAL
 
 
@@ -100,29 +97,21 @@ async def test_outage_and_recovery(
     freezer: FrozenDateTimeFactory,
 ) -> None:
     unit = mock_modbus[4701].for_unit(1)
-    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
+    entity_ids = {
+        "sensor.cfos_power_brain_wallbox_power": "7360",
+        "sensor.cfos_power_brain_wallbox_total_energy": "1234.567",
+        "sensor.cfos_power_brain_wallbox_session_energy": "0.0",
+    }
 
     unit.fail_requests(ModbusTimeoutError("no answer"))
-    freezer.tick(timedelta(seconds=11))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
-    assert (
-        hass.states.get("sensor.cfos_power_brain_wallbox_power").state
-        == STATE_UNAVAILABLE
-    )
-    # A lifetime total keeps its value, so statistics have no gap.
-    assert (
-        hass.states.get("sensor.cfos_power_brain_wallbox_total_energy").state
-        == "1234.567"
-    )
+    await poll(hass, freezer)
+    for entity_id in entity_ids:
+        assert hass.states.get(entity_id).state == STATE_UNAVAILABLE, entity_id
 
     unit.fail_requests(None)
-    freezer.tick(timedelta(seconds=11))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
-    assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
+    await poll(hass, freezer)
+    for entity_id, state in entity_ids.items():
+        assert hass.states.get(entity_id).state == state, entity_id
 
 
 async def test_s0_meters(

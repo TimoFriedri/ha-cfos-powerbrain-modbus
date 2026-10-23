@@ -70,10 +70,10 @@ counter and the time between pulses (read-only); pulses per kWh and the
 nominal voltages (**flash**); buttons to reset the energy and pulse counters
 (**flash**).
 
-Total energy sensors keep their last value while the wallbox is unreachable
-and across restarts, so the energy dashboard has no gaps. A reading of 0 Wh,
-which the controller reports briefly after it starts, is treated as unknown
-rather than as a meter reset.
+Like every entity, the total energy sensors are unavailable while the wallbox
+cannot be read. A reading of 0 Wh, which the controller reports briefly after
+it starts, is treated as unknown rather than as a meter reset, and a reading
+just below the last one is ignored.
 
 **Charging Manager** (optional, its own device *cFos Charging Manager* next to
 the charging point). The built-in Charging Manager is read and controlled

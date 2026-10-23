@@ -10,7 +10,6 @@ from operator import attrgetter
 from typing import Any, Self
 
 from homeassistant.components.sensor import (
-    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -342,7 +341,7 @@ def _variable_value(
 def _create[DeviceT: CfosDevice](
     unit: CfosUnitData[DeviceT], description: CfosSensorEntityDescription[Any]
 ) -> CfosSensor[DeviceT]:
-    """A plain sensor, or one that keeps its total across outages."""
+    """A plain sensor, or one that ignores brief dips of a total."""
     if description.state_class is SensorStateClass.TOTAL_INCREASING:
         return CfosTotalSensor(unit, description)
     return CfosSensor(unit, description)
@@ -366,17 +365,12 @@ class CfosSensor[DeviceT: CfosDevice](CfosEntity[DeviceT], SensorEntity):
         return self.entity_description.value_fn(component)
 
 
-class CfosKeptSensor[DeviceT: CfosDevice](CfosSensor[DeviceT]):
-    """A sensor that keeps its last value while the device is unreachable."""
-
-    @property
-    def available(self) -> bool:
-        """Always; the last value stays valid while the device is away."""
-        return True
+class CfosDerivedSensor[DeviceT: CfosDevice](CfosSensor[DeviceT]):
+    """A sensor whose value is worked out from successive polls."""
 
     @property
     def native_value(self) -> StateType | date | datetime | Decimal:
-        """The last value taken."""
+        """The value worked out so far."""
         return self._attr_native_value
 
     @callback
@@ -390,18 +384,16 @@ class CfosKeptSensor[DeviceT: CfosDevice](CfosSensor[DeviceT]):
         raise NotImplementedError
 
 
-class CfosTotalSensor[DeviceT: CfosDevice](CfosKeptSensor[DeviceT], RestoreSensor):
-    """A counter: it holds its last value while the device is unreachable.
+class CfosTotalSensor[DeviceT: CfosDevice](CfosDerivedSensor[DeviceT]):
+    """A counter that ignores a reading just below the last one.
 
-    A gap in a total damages long-term statistics and the energy dashboard,
-    so the counter stays available and restores its value across restarts.
+    Meters briefly report a little less now and then; a total_increasing
+    sensor that goes down makes Home Assistant warn about it.
     """
 
     async def async_added_to_hass(self) -> None:
-        """Restore the last total, then take the current one."""
+        """Take the total from the poll made during setup."""
         await super().async_added_to_hass()
-        if (last := await self.async_get_last_sensor_data()) is not None:
-            self._attr_native_value = last.native_value
         self._process_data()
 
     def _process_data(self) -> None:
@@ -440,7 +432,7 @@ class SessionExtraStoredData(ExtraStoredData):
             return None
 
 
-class CfosSessionEnergySensor(CfosKeptSensor[CfosWallbox], RestoreEntity):
+class CfosSessionEnergySensor(CfosDerivedSensor[CfosWallbox], RestoreEntity):
     """Energy charged since the vehicle was plugged in.
 
     Derived from the meter total: the session starts when the control pilot
