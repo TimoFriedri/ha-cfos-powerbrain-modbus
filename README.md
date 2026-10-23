@@ -22,25 +22,32 @@ write no YAML.
 
 **Wallbox** (Modbus slave ID 1, TCP port 4701)
 
-| Entity | Type | Register | Notes |
+| Register | Entity | Type | Notes |
 | --- | --- | --- | --- |
-| Charging state | sensor (enum) | 8092 | waiting, vehicle connected, charging, charging (ventilation), no power, error, DC sensor error |
-| Vehicle connected, Charging, Problem | binary sensor | 8092 | derived from the charging state |
-| Signaled charging current | sensor | 8095 | current the wallbox signals to the vehicle |
-| Power, Total energy, Current L1–L3 | sensor | 8062–8069, 8058 | only if a meter is attached (8112) |
-| Active phases | sensor | 8064–8069 | phases carrying at least 1 A |
-| Session energy | sensor | derived | energy since the vehicle was plugged in; kept after unplugging until the next session |
-| Charging current limit | number | 8093 | 6–32 A in 0.1 A steps; volatile |
-| Charging enabled | switch | 8094 | volatile |
-| Phase mode (1 / 3 phases) | select | 8087 | only if the wallbox allows phase switching (8113 bit 8) |
-| Relay 2 | switch | 8088 | only if a second relay is fitted (8113 bits 9–10) |
-| Wake up vehicle | button | 8086 | interrupts the control pilot for 5 s |
-| Controller temperature | sensor | 8122 | controller Rev. 3.0 and later |
-| Cable current rating, Phase switching allowed | diagnostic | 8090, 8113 | |
-| Last RFID, Restarts | diagnostic, disabled | 8096, 8120 | |
-| Cable current override | config, disabled | 8091 | volatile |
-| Default charging current limit, Default cable current override, Default charging enabled | config, disabled | 8080–8082 | values after a reboot; **stored in flash** |
-| Fail-safe current, Fail-safe timeout | config, disabled | 8083–8085 | **stored in flash**; see [Fail-safe](#the-modbus-fail-safe) |
+| 8058 | Total energy | sensor | only if a meter is attached (8112) |
+| 8058, 8092 | Session energy | sensor, derived | energy since the vehicle was plugged in; kept after unplugging until the next session |
+| 8062 | Power | sensor | only if a meter is attached (8112) |
+| 8064–8069 | Current L1, L2, L3 | sensor | only if a meter is attached (8112) |
+| 8064–8069 | Active phases | sensor, derived | phases carrying at least 1 A |
+| 8080 | Default cable current override | config, disabled | value after a reboot; **stored in flash** |
+| 8081 | Default charging current limit | config, disabled | value after a reboot; **stored in flash** |
+| 8082 | Default charging enabled | config, disabled | value after a reboot; **stored in flash** |
+| 8083 | Fail-safe timeout | config, disabled | **stored in flash**; see [Fail-safe](#the-modbus-fail-safe) |
+| 8085 | Fail-safe current | config, disabled | **stored in flash**; see [Fail-safe](#the-modbus-fail-safe) |
+| 8086 | Wake up vehicle | button | interrupts the control pilot for 5 s |
+| 8087 | Phase mode (1 / 3 phases) | select | only if the wallbox allows phase switching (8113 bit 8); volatile |
+| 8088 | Relay 2 | switch | only if a second relay is fitted (8113 bits 9–10); volatile |
+| 8090 | Cable current rating | diagnostic | |
+| 8091 | Cable current override | config, disabled | volatile |
+| 8092 | Charging state | sensor (enum) | waiting, vehicle connected, charging, charging (ventilation), no power, error, DC sensor error |
+| 8092 | Vehicle connected, Charging, Problem | binary sensor, derived | from the charging state |
+| 8093 | Charging current limit | number | 6–32 A in 0.1 A steps; volatile |
+| 8094 | Charging enabled | switch | volatile |
+| 8095 | Signaled charging current | sensor | current the wallbox signals to the vehicle |
+| 8096 | Last RFID | diagnostic, disabled | |
+| 8113 | Phase switching allowed | diagnostic | |
+| 8120 | Restarts | diagnostic, disabled | |
+| 8122 | Controller temperature | diagnostic | controller Rev. 3.0 and later |
 
 **S0 meters** (optional, slave IDs 2 and 3, TCP ports 4702 and 4703): power,
 total energy, currents L1–L3, and as disabled extras the pulse counter, the
