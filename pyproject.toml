@@ -26,10 +26,26 @@ convention = "pep257"
 
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
-known-first-party = ["custom_components"]
+known-first-party = ["custom_components", "tests"]
 combine-as-imports = true
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "homeassistant",
+    "first-party",
+    "local-folder",
+]
+
+[tool.ruff.lint.isort.sections]
+homeassistant = ["homeassistant"]
 
 [tool.mypy]
 python_version = "3.14"
-files = ["custom_components/cfos_powerbrain/cfos_modbus"]
+files = ["custom_components/cfos_powerbrain"]
 strict = true
+
+[[tool.mypy.overrides]]
+# Home Assistant re-exports names from component packages without __all__.
+module = ["homeassistant.*"]
+implicit_reexport = true

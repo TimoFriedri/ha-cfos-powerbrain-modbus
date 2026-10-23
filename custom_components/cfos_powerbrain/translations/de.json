@@ -1,0 +1,200 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Diese Wallbox ist bereits eingerichtet.",
+      "reconfigure_successful": "Die Verbindung wurde aktualisiert.",
+      "wrong_device": "Unter dieser Adresse antwortet ein anderer cFos-Controller als der dieses Eintrags."
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen: {error}",
+      "not_cfos": "Das Gerät antwortet, ist aber kein cFos Power Brain.",
+      "unknown": "Unerwarteter Fehler, siehe Protokoll."
+    },
+    "step": {
+      "reconfigure": {
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus-Slave-ID"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname der Wallbox.",
+          "port": "Modbus-TCP-Port der Ladestation (Standard 4701).",
+          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1)."
+        },
+        "description": "Ändern, wie Home Assistant die Wallbox erreicht."
+      },
+      "user": {
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus-Slave-ID"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname der Wallbox.",
+          "port": "Modbus-TCP-Port der Ladestation (Standard 4701).",
+          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1)."
+        },
+        "description": "Eine cFos Power Brain Wallbox über Modbus TCP verbinden. Steuert der eingebaute Lademanager diese Wallbox, kann er von Home Assistant geschriebene Werte überschreiben; siehe Dokumentation."
+      }
+    }
+  },
+  "device": {
+    "s0_meter": {
+      "name": "S0-Zähler {number}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "phase_switching_allowed": {
+        "name": "Phasenumschaltung erlaubt"
+      },
+      "vehicle_connected": {
+        "name": "Fahrzeug verbunden"
+      }
+    },
+    "button": {
+      "reset_energy": {
+        "name": "Energiezähler zurücksetzen"
+      },
+      "reset_pulses": {
+        "name": "Impulszähler zurücksetzen"
+      },
+      "wake_up_vehicle": {
+        "name": "Fahrzeug aufwecken"
+      }
+    },
+    "number": {
+      "charging_current_limit": {
+        "name": "Ladestromgrenze"
+      },
+      "default_charging_current_limit": {
+        "name": "Standard-Ladestromgrenze"
+      },
+      "default_fixed_current": {
+        "name": "Standard-Kabelstrom-Vorgabe"
+      },
+      "fail_safe_current": {
+        "name": "Fail-Safe-Strom"
+      },
+      "fail_safe_duration": {
+        "name": "Fail-Safe-Zeitlimit"
+      },
+      "fixed_current": {
+        "name": "Kabelstrom-Vorgabe"
+      },
+      "nominal_voltage": {
+        "name": "Nennspannung {phase}"
+      },
+      "pulses_per_kwh": {
+        "name": "Impulse pro kWh"
+      }
+    },
+    "select": {
+      "phase_mode": {
+        "name": "Phasenmodus",
+        "state": {
+          "single_phase": "1 Phase",
+          "three_phase": "3 Phasen"
+        }
+      }
+    },
+    "sensor": {
+      "active_phases": {
+        "name": "Aktive Phasen"
+      },
+      "cable_current": {
+        "name": "Kabel-Nennstrom"
+      },
+      "charge_pilot_state": {
+        "name": "Ladezustand",
+        "state": {
+          "charging": "Lädt",
+          "charging_ventilation": "Lädt (Belüftung)",
+          "dc_sensor_error": "DC-Sensorfehler",
+          "error": "Fehler",
+          "no_power": "Kein Strom",
+          "vehicle_detected": "Fahrzeug verbunden",
+          "waiting": "Wartet auf Fahrzeug"
+        }
+      },
+      "charging_current": {
+        "name": "Signalisierter Ladestrom"
+      },
+      "controller_temperature": {
+        "name": "Controller-Temperatur"
+      },
+      "last_rfid": {
+        "name": "Letzte RFID"
+      },
+      "phase_current": {
+        "name": "Strom {phase}"
+      },
+      "pulses": {
+        "name": "Impulse"
+      },
+      "restart_count": {
+        "name": "Neustarts"
+      },
+      "session_energy": {
+        "name": "Energie Ladevorgang"
+      },
+      "time_per_pulse": {
+        "name": "Zeit zwischen Impulsen"
+      },
+      "total_energy": {
+        "name": "Gesamtenergie"
+      }
+    },
+    "switch": {
+      "charging_enabled": {
+        "name": "Laden freigegeben"
+      },
+      "default_charging_enabled": {
+        "name": "Laden standardmäßig freigegeben"
+      },
+      "relay2": {
+        "name": "Relais 2"
+      }
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Fehler bei der Kommunikation mit der Wallbox: {error}"
+    },
+    "invalid_value": {
+      "message": "Die Wallbox akzeptiert diesen Wert nicht: {error}"
+    },
+    "no_component_answered": {
+      "message": "Die Wallbox hat auf keine Registerabfrage geantwortet."
+    },
+    "unsupported_device": {
+      "message": "Das Gerät meldet sich nicht als cFos Power Brain."
+    },
+    "write_failed": {
+      "message": "Schreiben an die Wallbox fehlgeschlagen: {error}"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "s0_meters": "S0-Zähler",
+          "scan_interval": "Abfrageintervall"
+        },
+        "data_description": {
+          "s0_meters": "S0-Zählereingänge des Controllers, die als Geräte angelegt werden. Sie werden über denselben Host auf TCP-Port 4702 (Slave-ID 2) und 4703 (Slave-ID 3) erreicht.",
+          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte. Die Abfragen verhindern, dass der Modbus-Fail-Safe der Wallbox auslöst."
+        }
+      }
+    }
+  },
+  "selector": {
+    "s0_meters": {
+      "options": {
+        "1": "S0-Zähler 1",
+        "2": "S0-Zähler 2"
+      }
+    }
+  }
+}

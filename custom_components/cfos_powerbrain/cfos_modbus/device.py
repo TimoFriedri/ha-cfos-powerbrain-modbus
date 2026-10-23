@@ -21,7 +21,7 @@ class UnsupportedDeviceError(Exception):
     """The unit answers, but does not identify as a cFos device."""
 
 
-class _CfosDevice(Device):
+class CfosDevice(Device):
     """A cFos Modbus unit; every one serves the identity block."""
 
     READINGS: tuple[str, ...] = ()
@@ -64,7 +64,7 @@ class _CfosDevice(Device):
         return await super().async_read_raw(names)
 
 
-class CfosWallbox(_CfosDevice):
+class CfosWallbox(CfosDevice):
     """The charging station unit (default slave id 1, TCP port 4701)."""
 
     READINGS = ("status", "meter")
@@ -104,7 +104,7 @@ class CfosWallbox(_CfosDevice):
         await self.status.write("cp_disconnect_remaining", seconds)
 
 
-class CfosS0Meter(_CfosDevice):
+class CfosS0Meter(CfosDevice):
     """An S0 meter input (default slave id 2 or 3, TCP port 4702 or 4703)."""
 
     READINGS = ("readings",)

@@ -16,7 +16,7 @@ from .const import (
     S0_METER_UNIT_IDS,
     VENDOR_ID,
 )
-from .device import CfosS0Meter, CfosWallbox, UnsupportedDeviceError
+from .device import CfosDevice, CfosS0Meter, CfosWallbox, UnsupportedDeviceError
 from .enums import ChargePilotState, PhaseRelay, S0Inputs, S0Phases
 from .evse import EvseHealth, EvseMeter, EvseSettings, EvseStatus
 from .identity import Identity
@@ -30,6 +30,7 @@ __all__ = [
     "S0_METER_PORTS",
     "S0_METER_UNIT_IDS",
     "VENDOR_ID",
+    "CfosDevice",
     "CfosS0Meter",
     "CfosWallbox",
     "ChargePilotState",

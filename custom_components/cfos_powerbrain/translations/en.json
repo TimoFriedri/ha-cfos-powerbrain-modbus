@@ -1,0 +1,200 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This wallbox is already configured.",
+      "reconfigure_successful": "The connection was updated.",
+      "wrong_device": "That address belongs to a different cFos controller than this entry."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect: {error}",
+      "not_cfos": "The device answered, but it is not a cFos Power Brain.",
+      "unknown": "Unexpected error, see the log."
+    },
+    "step": {
+      "reconfigure": {
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus slave ID"
+        },
+        "data_description": {
+          "host": "IP address or host name of the wallbox.",
+          "port": "Modbus TCP port of the charging station (4701 by default).",
+          "unit_id": "Modbus slave ID of the charging station (1 by default)."
+        },
+        "description": "Update how Home Assistant reaches the wallbox."
+      },
+      "user": {
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "unit_id": "Modbus slave ID"
+        },
+        "data_description": {
+          "host": "IP address or host name of the wallbox.",
+          "port": "Modbus TCP port of the charging station (4701 by default).",
+          "unit_id": "Modbus slave ID of the charging station (1 by default)."
+        },
+        "description": "Connect to a cFos Power Brain wallbox over Modbus TCP. If the built-in Charging Manager controls this wallbox, values written from Home Assistant can be overwritten by it; see the documentation."
+      }
+    }
+  },
+  "device": {
+    "s0_meter": {
+      "name": "S0 meter {number}"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "phase_switching_allowed": {
+        "name": "Phase switching allowed"
+      },
+      "vehicle_connected": {
+        "name": "Vehicle connected"
+      }
+    },
+    "button": {
+      "reset_energy": {
+        "name": "Reset energy counter"
+      },
+      "reset_pulses": {
+        "name": "Reset pulse counter"
+      },
+      "wake_up_vehicle": {
+        "name": "Wake up vehicle"
+      }
+    },
+    "number": {
+      "charging_current_limit": {
+        "name": "Charging current limit"
+      },
+      "default_charging_current_limit": {
+        "name": "Default charging current limit"
+      },
+      "default_fixed_current": {
+        "name": "Default cable current override"
+      },
+      "fail_safe_current": {
+        "name": "Fail-safe current"
+      },
+      "fail_safe_duration": {
+        "name": "Fail-safe timeout"
+      },
+      "fixed_current": {
+        "name": "Cable current override"
+      },
+      "nominal_voltage": {
+        "name": "Nominal voltage {phase}"
+      },
+      "pulses_per_kwh": {
+        "name": "Pulses per kWh"
+      }
+    },
+    "select": {
+      "phase_mode": {
+        "name": "Phase mode",
+        "state": {
+          "single_phase": "1 phase",
+          "three_phase": "3 phases"
+        }
+      }
+    },
+    "sensor": {
+      "active_phases": {
+        "name": "Active phases"
+      },
+      "cable_current": {
+        "name": "Cable current rating"
+      },
+      "charge_pilot_state": {
+        "name": "Charging state",
+        "state": {
+          "charging": "Charging",
+          "charging_ventilation": "Charging (ventilation)",
+          "dc_sensor_error": "DC sensor error",
+          "error": "Error",
+          "no_power": "No power",
+          "vehicle_detected": "Vehicle connected",
+          "waiting": "Waiting for vehicle"
+        }
+      },
+      "charging_current": {
+        "name": "Signaled charging current"
+      },
+      "controller_temperature": {
+        "name": "Controller temperature"
+      },
+      "last_rfid": {
+        "name": "Last RFID"
+      },
+      "phase_current": {
+        "name": "Current {phase}"
+      },
+      "pulses": {
+        "name": "Pulses"
+      },
+      "restart_count": {
+        "name": "Restarts"
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "time_per_pulse": {
+        "name": "Time between pulses"
+      },
+      "total_energy": {
+        "name": "Total energy"
+      }
+    },
+    "switch": {
+      "charging_enabled": {
+        "name": "Charging enabled"
+      },
+      "default_charging_enabled": {
+        "name": "Default charging enabled"
+      },
+      "relay2": {
+        "name": "Relay 2"
+      }
+    }
+  },
+  "exceptions": {
+    "communication_error": {
+      "message": "Error communicating with the wallbox: {error}"
+    },
+    "invalid_value": {
+      "message": "The wallbox does not accept this value: {error}"
+    },
+    "no_component_answered": {
+      "message": "The wallbox answered none of the register reads."
+    },
+    "unsupported_device": {
+      "message": "The device does not identify as a cFos Power Brain."
+    },
+    "write_failed": {
+      "message": "Writing to the wallbox failed: {error}"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "s0_meters": "S0 meters",
+          "scan_interval": "Polling interval"
+        },
+        "data_description": {
+          "s0_meters": "S0 meter inputs of the controller to add as devices. They are reached on the same host at TCP port 4702 (slave ID 2) and 4703 (slave ID 3).",
+          "scan_interval": "Seconds between two reads of the live values. Reads keep the wallbox's Modbus fail-safe from triggering."
+        }
+      }
+    }
+  },
+  "selector": {
+    "s0_meters": {
+      "options": {
+        "1": "S0 meter 1",
+        "2": "S0 meter 2"
+      }
+    }
+  }
+}
