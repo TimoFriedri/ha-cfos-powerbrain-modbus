@@ -78,28 +78,41 @@ hassfest and the HACS validation.
 - **Keep the docs current:** a new entity goes into the README feature tables
   (ordered by register), a new option into the configuration section.
 
-## Integration Quality Scale: target Bronze
+## Integration Quality Scale: target Silver
 
-The current target is the **Bronze** tier. `quality_scale.yaml` records each
-rule; every Bronze rule must stay `done` or `exempt` with a reason. Higher
-tiers are `todo` until reviewed; do not mark them `done` without checking the
-rule. In practice, Bronze here means:
+The current target is the **Silver** tier (which includes Bronze), plus
+Platinum's **strict-typing** rule. `quality_scale.yaml` records each rule;
+every rule of these must stay `done` or `exempt` with a reason. The other
+rules of higher tiers are `todo` until reviewed; do not mark them `done`
+without checking the rule. In practice this means:
 
 - Setup only through the config flow, which tests the connection before it
   creates an entry and never configures the same controller twice.
-- `config_flow.py` keeps **100 % test coverage**, and every error case is
-  followed by a successful retry.
-- Every config flow field has a `data_description`.
+- Every config flow field has a `data_description`; the README describes
+  every setup field and option.
 - Entities have unique IDs and `has_entity_name`; runtime state lives in
-  `entry.runtime_data`.
+  `entry.runtime_data`, typed as `CfosConfigEntry`.
 - Setup fails with `ConfigEntryNotReady` or `ConfigEntryError` when the
   wallbox cannot be used. The optional devices (S0 meters, Charging Manager)
   must not block it.
-- Actions are registered in `async_setup`; a bad call raises
-  `ServiceValidationError`.
+- Entities are **unavailable** while their data cannot be read; never show a
+  stale value as current.
+- Unavailability is logged **once**, and so is the recovery. Coordinators do
+  this themselves when the poll raises `UpdateFailed`; anything logged on top
+  is at info level.
+- Actions are registered in `async_setup`. A wrong call raises
+  `ServiceValidationError`, a failed write `HomeAssistantError`; entity
+  writes raise `HomeAssistantError` too.
+- Every platform sets `PARALLEL_UPDATES`: 0 for read-only ones, 1 for those
+  that write.
+- **Every module**, the device library included, keeps **above 95 % test
+  coverage**; `config_flow.py` stays at 100 %, with every error case
+  followed by a successful retry.
+- mypy runs strict plus the checks Home Assistant core adds
+  (`pyproject.toml`). Every method that overrides one carries `@override`
+  directly above the `def`.
 - The README covers the high-level description, installation, removal and
-  every action with its fields.
-- Brand images ship in `brand/`.
+  every action with its fields. Brand images ship in `brand/`.
 
 ## Commits and releases
 
