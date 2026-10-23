@@ -1,10 +1,23 @@
-"""Register images of a cFos Power Brain, for the in-memory mock backend."""
+"""Register images of a cFos Power Brain, and a write recorder, for the mock backend."""
 
 from __future__ import annotations
 
 import struct
 
+from modbus_connection.mock import MockModbusUnit, WriteEvent
+
 SERIAL = "PB2X123456"
+
+
+def record_writes(unit: MockModbusUnit) -> list[tuple[int, list[int]]]:
+    """Collect every write to ``unit`` as (address, register values)."""
+    writes: list[tuple[int, list[int]]] = []
+
+    def record(event: WriteEvent) -> None:
+        writes.append((event.address, [int(value) for value in event.values]))
+
+    unit.on_write(record)
+    return writes
 
 
 def ascii_words(text: str, length: int) -> list[int]:

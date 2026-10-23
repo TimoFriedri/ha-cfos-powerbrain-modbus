@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from modbus_connection.mock import MockModbusUnit, WriteEvent
+from modbus_connection.mock import MockModbusUnit
 import pytest
 
 from cfos_modbus import CfosS0Meter, S0Phases
-from tests.registers import s0_meter
+from tests.registers import record_writes, s0_meter
 
 
 @pytest.fixture
@@ -43,10 +43,9 @@ async def test_s0_energy_may_be_zero(unit: MockModbusUnit) -> None:
 
 async def test_resets(unit: MockModbusUnit) -> None:
     meter = CfosS0Meter(unit)
-    writes: list[WriteEvent] = []
-    unit.on_write(writes.append)
+    writes = record_writes(unit)
 
     await meter.async_reset_energy()
     await meter.async_reset_pulses()
 
-    assert [(w.address, w.values) for w in writes] == [(8071, [1]), (8070, [1])]
+    assert writes == [(8071, [1]), (8070, [1])]

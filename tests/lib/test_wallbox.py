@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from modbus_connection import IllegalDataAddressError
-from modbus_connection.mock import MockModbusUnit, WriteEvent
+from modbus_connection.mock import MockModbusUnit
 import pytest
 
 from cfos_modbus import (
@@ -13,7 +13,7 @@ from cfos_modbus import (
     S0Inputs,
     UnsupportedDeviceError,
 )
-from tests.registers import SERIAL, wallbox, words
+from tests.registers import SERIAL, record_writes, wallbox, words
 
 # Addresses the register map documents for the EVSE unit.
 DOCUMENTED = (
@@ -29,12 +29,6 @@ DOCUMENTED = (
 def unit(mock_modbus_unit: MockModbusUnit) -> MockModbusUnit:
     mock_modbus_unit.holding.update(wallbox())
     return mock_modbus_unit
-
-
-def record_writes(unit: MockModbusUnit) -> list[WriteEvent]:
-    writes: list[WriteEvent] = []
-    unit.on_write(writes.append)
-    return writes
 
 
 async def test_update_decodes_every_block(unit: MockModbusUnit) -> None:
@@ -181,9 +175,9 @@ async def test_write_charging_current_limit(unit: MockModbusUnit) -> None:
     device = CfosWallbox(unit)
     writes = record_writes(unit)
 
-    await device.async_set_charging_current_limit(10.7)
+    await device.status.write("charging_current_limit", 10.7)
 
-    assert writes == [WriteEvent("holding", 8093, [107], 0x06)]
+    assert writes == [(8093, [107])]
 
 
 @pytest.mark.parametrize("amps", [5.9, 63.1, 0])
@@ -194,7 +188,7 @@ async def test_charging_current_limit_out_of_range(
     writes = record_writes(unit)
 
     with pytest.raises(ValueError):
-        await device.async_set_charging_current_limit(amps)
+        await device.status.write("charging_current_limit", amps)
     assert writes == []
 
 
@@ -202,12 +196,12 @@ async def test_write_volatile_controls(unit: MockModbusUnit) -> None:
     device = CfosWallbox(unit)
     writes = record_writes(unit)
 
-    await device.async_set_charging_enabled(False)
+    await device.status.write("charging_enabled", False)
     await device.async_set_phase_relay(PhaseRelay.SINGLE_PHASE)
     await device.async_wake_up()
     await device.status.write("relay2", True)
 
-    assert [(w.address, w.values) for w in writes] == [
+    assert writes == [
         (8094, [0]),
         (8087, [1]),
         (8086, [5]),
@@ -222,7 +216,7 @@ async def test_write_fail_safe(unit: MockModbusUnit) -> None:
     await device.settings.write("fail_safe_duration", 600)
     await device.settings.write("fail_safe_current", 0)
 
-    assert [(w.address, w.values) for w in writes] == [
+    assert writes == [
         (8083, [0, 600]),
         (8085, [0]),
     ]

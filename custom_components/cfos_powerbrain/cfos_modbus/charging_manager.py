@@ -1,19 +1,20 @@
 """The Charging Manager's SunSpec Modbus server.
 
 The cFos Charging Manager built into the cFos Power Brain Wallbox and
-Controller is reached separately from the controller's own units. Once its SunSpec server is switched on under "SunSpec
-address settings" in the Charging Manager configuration, it answers on the TCP
-port and Modbus ID set there. Its values sit in SunSpec models from register
-40000 on: the common model, seven meter models, then the custom models 60000
-(parameters), 60001 (flags) and 60002 (variables). cFos may add values to the
-models, so the addresses are discovered by scanning the model chain.
+Controller is reached separately from the controller's own units. Once its
+SunSpec server is switched on under "SunSpec address settings" in the Charging
+Manager configuration, it answers on the TCP port and Modbus ID set there. Its
+values sit in SunSpec models from register 40000 on: the common model, seven
+meter models, then the custom models 60000 (parameters), 60001 (flags) and
+60002 (variables). cFos may add values to the models, so the addresses are
+discovered by scanning the model chain.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Final
 
-from modbus_connection.model import Component, float32 as scaled_float32
+from modbus_connection.model import Component, FloatField, float32 as scaled_float32
 from modbus_connection.model.sunspec import (
     SunSpecComponent,
     SunSpecError,
@@ -56,6 +57,13 @@ available wallbox power and fault power."""
 
 _MAX_CURRENT: Final = 1000.0
 """Highest current accepted for a Charging Manager parameter, in A."""
+
+
+def _milliamps(offset: int) -> FloatField:
+    """A current the register holds in mA, read and written in A."""
+    return scaled_float32(
+        offset, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
+    )
 
 
 class CmCommon(SunSpecComponent):
@@ -104,29 +112,19 @@ class CmParameters(SunSpecComponent):
     them rarely. The registers hold mA; the fields read and write A.
     """
 
-    max_total_current = scaled_float32(
-        2, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
-    )
+    max_total_current = _milliamps(2)
     """Maximum total current of the installation, per phase."""
 
-    power_reserve = scaled_float32(
-        4, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
-    )
+    power_reserve = _milliamps(4)
     """Current kept in reserve."""
 
-    overdraw = scaled_float32(
-        6, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
-    )
+    overdraw = _milliamps(6)
     """Current the installation may briefly exceed its maximum by."""
 
-    max_wallbox_current = scaled_float32(
-        8, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
-    )
+    max_wallbox_current = _milliamps(8)
     """Maximum total current of all wallboxes, per phase."""
 
-    max_phase_imbalance = scaled_float32(
-        10, scale=0.001, writable=in_range(0, _MAX_CURRENT), unit="A"
-    )
+    max_phase_imbalance = _milliamps(10)
     """Maximum imbalance between the phases."""
 
     load_management = float32(12, writable=in_range(0, 1))
@@ -306,18 +304,6 @@ class CfosChargingManager(CfosDevice):
         if self.variables is None:
             return []
         return [variable.name or "" for variable in self.variables.variables]
-
-    async def async_set_max_total_current_percent(self, percent: float) -> None:
-        """Limit the total current to a share of its maximum (not saved)."""
-        if self.limit is None:
-            raise UnsupportedDeviceError("The Charging Manager has no current limit")
-        await self.limit.write("max_total_current_percent", percent)
-
-    async def async_set_flag(self, number: int, on: bool) -> None:
-        """Set flag ``number`` (1-32), ``CM._flagN`` in formulas (not saved)."""
-        if self.flags is None or not 1 <= number <= len(self.flags.flags):
-            raise UnsupportedDeviceError(f"The Charging Manager has no flag {number}")
-        await self.flags.flags[number - 1].write("on", on)
 
     async def async_set_variable(self, name: str, value: float) -> None:
         """Give a variable a fixed value, replacing its formula (not saved).

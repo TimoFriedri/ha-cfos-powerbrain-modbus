@@ -2,28 +2,24 @@
 
 from __future__ import annotations
 
-from modbus_connection.mock import MockModbusUnit, WriteEvent
+from modbus_connection.mock import MockModbusUnit
 from modbus_connection.model.sunspec import SunSpecMapShiftError
 import pytest
 
 from cfos_modbus import METERS, CfosChargingManager, UnsupportedDeviceError
-from tests.registers import CM_METER_POWER, CM_SERIAL, charging_manager, float_words
+from tests.registers import (
+    CM_METER_POWER,
+    CM_SERIAL,
+    charging_manager,
+    float_words,
+    record_writes,
+)
 
 
 @pytest.fixture
 def unit(mock_modbus_unit: MockModbusUnit) -> MockModbusUnit:
     mock_modbus_unit.holding.update(charging_manager())
     return mock_modbus_unit
-
-
-def record_writes(unit: MockModbusUnit) -> list[tuple[int, list[int]]]:
-    writes: list[tuple[int, list[int]]] = []
-
-    def record(event: WriteEvent) -> None:
-        writes.append((event.address, [int(value) for value in event.values]))
-
-    unit.on_write(record)
-    return writes
 
 
 async def test_update(unit: MockModbusUnit) -> None:
@@ -95,10 +91,12 @@ async def test_writes(unit: MockModbusUnit) -> None:
     await cm.async_update()
     writes = record_writes(unit)
 
-    await cm.async_set_max_total_current_percent(50)
-    await cm.async_set_flag(3, False)
-    await cm.async_set_variable("night_rate", 0.25)
+    assert cm.limit is not None
+    assert cm.flags is not None
     assert cm.parameters is not None
+    await cm.limit.write("max_total_current_percent", 50)
+    await cm.flags.flags[2].write("on", False)
+    await cm.async_set_variable("night_rate", 0.25)
     await cm.parameters.write("max_total_current", 40)
 
     assert writes == [
@@ -114,12 +112,11 @@ async def test_rejected_writes(unit: MockModbusUnit) -> None:
     await cm.async_update()
     writes = record_writes(unit)
 
+    assert cm.limit is not None
     with pytest.raises(ValueError):
-        await cm.async_set_max_total_current_percent(101)
+        await cm.limit.write("max_total_current_percent", 101)
     with pytest.raises(KeyError):
         await cm.async_set_variable("unknown", 1)
-    with pytest.raises(UnsupportedDeviceError):
-        await cm.async_set_flag(33, True)
     assert writes == []
 
 

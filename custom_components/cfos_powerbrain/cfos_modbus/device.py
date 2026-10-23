@@ -121,14 +121,6 @@ class CfosWallbox(PowerBrainUnit):
             self.meter = EvseMeter(self.modbus_unit)
         self.health = await read_optional(EvseHealth(self.modbus_unit))
 
-    async def async_set_charging_current_limit(self, amps: float) -> None:
-        """Limit the charging current (volatile, may be written often)."""
-        await self.status.write("charging_current_limit", amps)
-
-    async def async_set_charging_enabled(self, enabled: bool) -> None:
-        """Allow or stop charging (volatile, may be written often)."""
-        await self.status.write("charging_enabled", enabled)
-
     async def async_set_phase_relay(self, relay: PhaseRelay) -> None:
         """Charge on one or three phases (volatile)."""
         await self.status.write("phase_relay", relay)
