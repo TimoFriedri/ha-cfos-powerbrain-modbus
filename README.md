@@ -11,8 +11,7 @@
 
 Monitor and control a **cFos Power Brain Wallbox**, or a wallbox built around
 the **cFos Power Brain Controller**, from Home Assistant over **Modbus TCP**,
-using the
-[Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
+using the [Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
 
 [cFos Software GmbH](https://www.cfos-emobility.de) makes the cFos Power
 Brain Wallbox and the cFos Power Brain Controller, which other wallbox makers
@@ -33,9 +32,9 @@ write no YAML.
 
 ## Features
 
-**Wallbox** (Modbus slave ID 1, TCP port 4701)
-
-The **Writes** column says what writing a value does; see
+**Wallbox** (Modbus slave ID 1, TCP port 4701), following cFos'
+[Modbus register documentation][cfos-registers]. The **Writes** column says
+what writing a value does; see
 [Writing values: volatile or flash](#writing-values-volatile-or-flash).
 
 | Register | Entity | Type | Writes | Notes |
@@ -242,9 +241,8 @@ Manager has.
 
 - Home Assistant **2026.10.0** or newer.
 - A cFos Power Brain Wallbox, or a wallbox with the cFos Power Brain
-  Controller, reachable on your network, with
-  Modbus TCP available on ports 4701 (wallbox) and, for the S0 meters, 4702
-  and 4703.
+  Controller, reachable on your network, with Modbus TCP available on ports
+  4701 (wallbox) and, for the S0 meters, 4702 and 4703.
 - A fixed IP address for the wallbox, for example a DHCP reservation in your
   router. If the address changes anyway, **Reconfigure** updates it.
 - For the Charging Manager device: its SunSpec server switched on, see
@@ -297,8 +295,7 @@ Then update the automations, scripts and dashboards that use the old IDs.
 ## Configuration
 
 **Settings → Devices & services → Add integration → cFos Power Brain Wallbox
-(Modbus)**,
-then enter:
+(Modbus)**, then enter:
 
 | Field | Default | |
 | --- | --- | --- |
@@ -332,7 +329,8 @@ It can run side by side with the HTTP-API-based
 
 1. In the Charging Manager's configuration, under **SunSpec address
    settings**, enter a TCP port and a Modbus ID. On the cFos Power Brain
-   Wallbox the port is 502. This switches on the Charging Manager's SunSpec Modbus server.
+   Wallbox the port is 502. This switches on the Charging Manager's SunSpec
+   Modbus server.
 2. When adding the integration, or later in its options, switch on
    **Charging Manager** and enter the same port and Modbus ID. The integration
    checks that the server answers before it saves them.
@@ -350,8 +348,7 @@ Modbus ID + 1. The integration does not read that list yet.
    Delete.** This removes the devices and entities and closes the Modbus
    connections.
 2. Installed through HACS: **HACS → cFos Power Brain Wallbox (Modbus) → ⋮ →
-   Remove**,
-   then restart Home Assistant. Installed manually: delete
+   Remove**, then restart Home Assistant. Installed manually: delete
    `custom_components/cfos_powerbrain` and restart.
 
 What stays on the wallbox afterwards:
@@ -370,9 +367,9 @@ What stays on the wallbox afterwards:
 
 ## Home Assistant control and the cFos Charging Manager
 
-The cFos Power Brain Wallbox has the cFos Charging Manager built in. What happens
-to values that Home Assistant writes depends on whether that Charging Manager
-manages the wallbox's own charging point.
+The cFos Power Brain Wallbox has the cFos Charging Manager built in. What
+happens to values that Home Assistant writes depends on whether that Charging
+Manager manages the wallbox's own charging point.
 
 ### When the Charging Manager manages the wallbox
 
@@ -410,8 +407,7 @@ Then:
 
 - Charging current limit, Charging enabled, Phase mode and Relay 2 can be
   written as often as needed. After a reboot they fall back to their
-  defaults; see
-  [The volatile values](#the-volatile-values).
+  defaults; see [The volatile values](#the-volatile-values).
 
 ### Which one applies to me?
 
@@ -497,8 +493,8 @@ counterpart:
 ## Reporting problems
 
 1. Download diagnostics: **Settings → Devices & services → cFos Power Brain
-   Wallbox (Modbus) → ⋮ → Download diagnostics**. It contains the raw value of every
-   register the integration reads, with the serial numbers and RFID tag
+   Wallbox (Modbus) → ⋮ → Download diagnostics**. It contains the raw value of
+   every register the integration reads, with the serial numbers and RFID tag
    redacted. For the Charging Manager it also lists the SunSpec models found
    and their addresses.
 2. Or, without Home Assistant, run
