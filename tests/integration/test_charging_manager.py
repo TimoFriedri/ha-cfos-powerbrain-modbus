@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusConnectionError
-from modbus_connection.mock import MockModbusConnection, MockModbusUnit, WriteEvent
+from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
-    async_fire_time_changed,
 )
 from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
@@ -43,8 +41,14 @@ from custom_components.cfos_powerbrain.const import (
     CONF_S0_METERS,
     DOMAIN,
 )
-from tests.integration.conftest import ENTRY_DATA
-from tests.registers import CM_SERIAL, SERIAL, charging_manager, float_words
+from tests.integration.conftest import ENTRY_DATA, poll
+from tests.registers import (
+    CM_SERIAL,
+    SERIAL,
+    charging_manager,
+    float_words,
+    record_writes,
+)
 
 MANAGER_OPTIONS = {
     CONF_CHARGING_MANAGER: True,
@@ -69,22 +73,6 @@ async def init_with_manager(
     assert await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
     return config_entry
-
-
-def record_writes(unit: MockModbusUnit) -> list[tuple[int, list[int]]]:
-    writes: list[tuple[int, list[int]]] = []
-
-    def record(event: WriteEvent) -> None:
-        writes.append((event.address, [int(value) for value in event.values]))
-
-    unit.on_write(record)
-    return writes
-
-
-async def poll(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    freezer.tick(timedelta(seconds=11))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
 
 
 async def test_enable_in_options(

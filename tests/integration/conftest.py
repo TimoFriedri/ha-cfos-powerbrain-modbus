@@ -8,12 +8,17 @@ an in-memory mock connection seeded with a register image.
 from __future__ import annotations
 
 from collections.abc import Generator
+from datetime import timedelta
 from unittest.mock import PropertyMock, patch
 
+from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusTcpParams
 from modbus_connection.mock import MockModbusConnection
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
@@ -23,6 +28,13 @@ from tests.registers import SERIAL, charging_manager, s0_meter, wallbox
 
 HOST = "192.168.1.50"
 ENTRY_DATA = {CONF_HOST: HOST, CONF_PORT: 4701, CONF_UNIT_ID: 1}
+
+
+async def poll(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """Let the 10 s polling interval pass once."""
+    freezer.tick(timedelta(seconds=11))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
 
 @pytest.fixture(autouse=True)

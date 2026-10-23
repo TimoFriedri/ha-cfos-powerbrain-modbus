@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
-
 from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusTimeoutError
-from modbus_connection.mock import MockModbusConnection, MockModbusUnit, WriteEvent
+from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 import pytest
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
-    async_fire_time_changed,
 )
 
 from homeassistant.components.button import SERVICE_PRESS
@@ -27,28 +24,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-from tests.registers import wallbox, words
-
-
-def record_writes(unit: MockModbusUnit) -> list[tuple[int, list[int]]]:
-    writes: list[tuple[int, list[int]]] = []
-
-    def record(event: WriteEvent) -> None:
-        writes.append((event.address, [int(value) for value in event.values]))
-
-    unit.on_write(record)
-    return writes
+from tests.integration.conftest import poll
+from tests.registers import record_writes, wallbox, words
 
 
 @pytest.fixture
 def evse(mock_modbus: dict[int, MockModbusConnection]) -> MockModbusUnit:
     return mock_modbus[4701].for_unit(1)
-
-
-async def poll(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
-    freezer.tick(timedelta(seconds=11))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
 
 
 @pytest.mark.usefixtures("init_integration")
@@ -81,24 +63,15 @@ async def test_states(hass: HomeAssistant) -> None:
 
 @pytest.mark.usefixtures("entity_registry_enabled_by_default", "init_integration")
 async def test_hidden_entities(hass: HomeAssistant) -> None:
-    assert (
-        hass.states.get("sensor.cfos_power_brain_wallbox_last_rfid").state
-        == "04A1B2C3D4"
-    )
-    assert (
-        hass.states.get("number.cfos_power_brain_wallbox_fail_safe_current").state
-        == "6.0"
-    )
-    assert (
-        hass.states.get("number.cfos_power_brain_wallbox_fail_safe_timeout").state
-        == "300"
-    )
-    assert (
-        hass.states.get(
-            "switch.cfos_power_brain_wallbox_default_charging_enabled"
-        ).state
-        == STATE_ON
-    )
+    expected = {
+        "sensor.cfos_power_brain_wallbox_last_rfid": "04A1B2C3D4",
+        "number.cfos_power_brain_wallbox_fail_safe_current": "6.0",
+        "number.cfos_power_brain_wallbox_fail_safe_timeout": "300",
+        "switch.cfos_power_brain_wallbox_default_charging_enabled": STATE_ON,
+    }
+    for entity_id, state in expected.items():
+        assert (current := hass.states.get(entity_id)) is not None, entity_id
+        assert current.state == state, entity_id
 
 
 async def test_optional_entities(
