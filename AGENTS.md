@@ -47,8 +47,13 @@ All four must pass before a commit. Change a pin in `pyproject.toml`, then
 run `uv lock` and commit both files.
 
 `main` is protected: changes go through a pull request, which merges only
-once the **CI passed** check of `.github/workflows/ci.yml` is green. That
-check needs every job of the workflow:
+once two checks are green:
+
+- **CodeQL**: GitHub's code scanning (default setup, Python and GitHub
+  Actions) analyses every pull request. Configured in the repository settings,
+  not in a workflow; a CodeQL workflow of our own would conflict with it.
+- **CI passed** of `.github/workflows/ci.yml`, which needs every job of the
+  workflow:
 
 | Job | Checks |
 | --- | --- |
