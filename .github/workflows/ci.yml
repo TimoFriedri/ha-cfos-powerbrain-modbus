@@ -1,0 +1,170 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Weekly, to catch new hassfest and HACS checks between changes.
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  lint:
+    name: Lint and type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install requirements
+        run: uv sync --locked
+
+      - name: Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Translations
+        # Home Assistant loads translations/en.json; strings.json is its source.
+        run: >
+          cmp custom_components/cfos_powerbrain/strings.json
+          custom_components/cfos_powerbrain/translations/en.json
+
+      - name: Mypy
+        # Strict, plus the checks Home Assistant core adds (Platinum strict-typing).
+        run: uv run mypy
+
+  test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install requirements
+        run: uv sync --locked
+
+      - name: Pytest
+        run: uv run pytest --cov --cov-report=term-missing --cov-report=json
+
+      - name: Coverage per module
+        # Silver test-coverage and Bronze config-flow-test-coverage.
+        run: uv run python script/check_coverage.py
+
+  library:
+    # The oldest modbus-connection a supported Home Assistant ships, and the newest.
+    name: Device library on modbus-connection ${{ matrix.modbus-connection }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        modbus-connection: ["==4.12.3", ""]
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Pytest
+        # Only the library tests: they need no Home Assistant, so the project's
+        # pinned environment is left out.
+        run: >
+          uv run --no-project --python 3.14
+          --with "modbus-connection[tmodbus]${{ matrix.modbus-connection }}"
+          --with pytest --with pytest-asyncio
+          pytest tests/lib -p no:cacheprovider
+
+  quality-scale:
+    name: Quality scale
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install requirements
+        run: uv sync --locked
+
+      - name: Find the Home Assistant version the tests pin
+        id: homeassistant
+        run: >
+          echo "version=$(uv run python -c
+          'from homeassistant.const import __version__; print(__version__)')"
+          >> "$GITHUB_OUTPUT"
+
+      - name: Check out hassfest of that version
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: home-assistant/core
+          ref: ${{ steps.homeassistant.outputs.version }}
+          path: home-assistant-core
+          sparse-checkout: script/hassfest
+          persist-credentials: false
+
+      - name: Check the quality scale
+        # Bronze, Silver and strict-typing; hassfest skips this for custom
+        # integrations.
+        run: uv run python script/check_quality_scale.py home-assistant-core
+
+  hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
+    name: Hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Run hassfest
+        uses: home-assistant/actions/hassfest@f4ca6f671bd429efb108c0f2fa0ae8af0215986c # master
+
+  hacs: # https://github.com/hacs/action
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run HACS validation
+        uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
+        with:
+          category: integration
+
+  passed:
+    # The one check branch protection needs to require.
+    name: CI passed
+    if: always()
+    needs: [lint, test, library, quality-scale, hassfest, hacs]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every job succeeded
+        if: >
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'cancelled') ||
+          contains(needs.*.result, 'skipped')
+        run: exit 1

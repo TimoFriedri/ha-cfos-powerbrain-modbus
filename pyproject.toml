@@ -27,6 +27,9 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 pythonpath = ["."]
 
+[tool.coverage.run]
+source = ["custom_components/cfos_powerbrain"]
+
 [tool.ruff]
 target-version = "py313"
 

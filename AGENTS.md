@@ -44,9 +44,31 @@ uv run pytest
 ```
 
 All four must pass before a commit. Change a pin in `pyproject.toml`, then
-run `uv lock` and commit both files. CI (`.github/workflows/`) runs them,
-the library tests on the oldest and newest supported `modbus-connection`,
-hassfest and the HACS validation.
+run `uv lock` and commit both files.
+
+`main` is protected: changes go through a pull request, which merges only
+once the **CI passed** check of `.github/workflows/ci.yml` is green. That
+check needs every job of the workflow:
+
+| Job | Checks |
+| --- | --- |
+| Lint and type-check | ruff, ruff format, `strings.json` equal to `translations/en.json`, mypy |
+| Integration tests | pytest; every module above 95 % coverage, `config_flow.py` at 100 % (`script/check_coverage.py`) |
+| Device library | the library tests on the oldest and newest supported `modbus-connection` |
+| Quality scale | `script/check_quality_scale.py`: the target rules are done or exempt, and hassfest's own rule checks pass |
+| Hassfest, HACS | Home Assistant's and HACS' validation |
+
+To run the coverage and quality scale checks locally:
+
+```bash
+uv run pytest --cov --cov-report=json && uv run python script/check_coverage.py
+git clone --depth 1 --branch 2026.10.2 --filter=blob:none --sparse \
+  https://github.com/home-assistant/core ../home-assistant-core
+git -C ../home-assistant-core sparse-checkout set script/hassfest
+uv run python script/check_quality_scale.py ../home-assistant-core
+```
+
+Use the Home Assistant version pinned in `pyproject.toml` as the branch.
 
 ## Code conventions
 
@@ -125,8 +147,8 @@ without checking the rule. In practice this means:
   - The summary is imperative and lower case, with no full stop.
   - Mark a breaking change with `!` after the type, e.g.
     `feat!: …`, and a `BREAKING CHANGE:` footer.
-- Each commit passes the checks on its own. Do not create pull requests,
-  tags or releases unless asked.
+- Each commit passes the checks on its own. Push changes to a branch, not
+  to `main`; do not create pull requests, tags or releases unless asked.
 - Releases: bump `version` in `manifest.json`, then the maintainer tags
   `X.Y.Z` (no `v` prefix) on GitHub and writes the release notes. HACS offers
   the GitHub releases.
