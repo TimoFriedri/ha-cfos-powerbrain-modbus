@@ -303,12 +303,29 @@ async def async_setup_entry(
             for description in CHARGING_MANAGER_SENSORS
             if description.supported(manager.device)
         )
-        entities.extend(
-            CfosVariableSensor(manager, index, name)
-            for index, name in enumerate(manager.device.variable_names)
-            if name
-        )
+        entities.extend(_variable_sensors(manager))
     async_add_entities(entities)
+
+
+def _variable_sensors(
+    manager: CfosUnitData[CfosChargingManager],
+) -> list[CfosVariableSensor]:
+    """One sensor per named variable, keyed by name so it survives reordering.
+
+    Names that only differ in case or punctuation, like "PV Mode" and
+    "pv_mode", would share a key; later ones get their position appended.
+    """
+    sensors: list[CfosVariableSensor] = []
+    keys: set[str] = set()
+    for index, name in enumerate(manager.device.variable_names):
+        if not name:
+            continue
+        key = f"variable_{slugify(name)}"
+        if key in keys:
+            key = f"{key}_{index + 1}"
+        keys.add(key)
+        sensors.append(CfosVariableSensor(manager, index, name, key))
+    return sensors
 
 
 def _create[DeviceT: CfosDevice](
@@ -470,13 +487,17 @@ class CfosVariableSensor(CfosSensor[CfosChargingManager]):
     """
 
     def __init__(
-        self, unit: CfosUnitData[CfosChargingManager], index: int, name: str
+        self,
+        unit: CfosUnitData[CfosChargingManager],
+        index: int,
+        name: str,
+        key: str,
     ) -> None:
         """Initialize the sensor for the variable at ``index``."""
         super().__init__(
             unit,
             CfosSensorEntityDescription[CfosChargingManager](
-                key=f"variable_{slugify(name)}",
+                key=key,
                 translation_key="variable",
                 translation_placeholders={"name": name},
                 component="variables",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
 
@@ -32,7 +33,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from custom_components.cfos_powerbrain.const import (
     CONF_CHARGING_MANAGER,
@@ -111,22 +112,49 @@ async def test_enable_in_options(
     )
 
 
-async def test_enable_in_options_without_sunspec_server(
+def _wrong_modbus_id(options: dict[str, Any], unit: MockModbusUnit) -> None:
+    options[CONF_CHARGING_MANAGER_UNIT_ID] = 9  # nothing answers there
+
+
+def _refused(options: dict[str, Any], unit: MockModbusUnit) -> None:
+    unit.fail_requests(ModbusConnectionError("refused"))
+
+
+@pytest.mark.parametrize(
+    ("cause", "error"),
+    [
+        (_wrong_modbus_id, "charging_manager_not_found"),
+        (_refused, "charging_manager_cannot_connect"),
+    ],
+)
+async def test_enable_in_options_recovers_from_error(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
+    manager_unit: MockModbusUnit,
+    cause: Callable[[dict[str, Any], MockModbusUnit], None],
+    error: str,
 ) -> None:
+    options: dict[str, Any] = {
+        CONF_SCAN_INTERVAL: 10,
+        CONF_S0_METERS: [],
+        **MANAGER_OPTIONS,
+    }
+    broken = dict(options)
+    cause(broken, manager_unit)
     result = await hass.config_entries.options.async_init(init_integration.entry_id)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            CONF_SCAN_INTERVAL: 10,
-            CONF_S0_METERS: [],
-            **MANAGER_OPTIONS,
-            CONF_CHARGING_MANAGER_UNIT_ID: 9,  # nothing answers there
-        },
+        result["flow_id"], broken
     )
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "charging_manager_not_found"}
+    assert result["errors"] == {"base": error}
+
+    manager_unit.fail_requests(None)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], options
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert init_integration.runtime_data.charging_manager is not None
 
 
 @pytest.mark.usefixtures("init_with_manager")
@@ -357,3 +385,28 @@ async def test_diagnostics(
     assert manager["variable_layout"] == "CmVariables"
     assert manager["registers"]["holding"]["40052"] == "**REDACTED**"
     assert CM_SERIAL not in str(result)
+
+
+async def test_variables_with_names_alike_get_their_own_ids(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    manager_unit: MockModbusUnit,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    manager_unit.holding.update(charging_manager(variables=("PV Mode", "pv_mode")))
+    config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(config_entry, options=MANAGER_OPTIONS)
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    unique_ids = {
+        entry.unique_id
+        for entry in er.async_entries_for_config_entry(
+            entity_registry, config_entry.entry_id
+        )
+        if "_variable_" in entry.unique_id
+    }
+    assert unique_ids == {
+        f"{SERIAL}_charging_manager_variable_pv_mode",
+        f"{SERIAL}_charging_manager_variable_pv_mode_2",
+    }

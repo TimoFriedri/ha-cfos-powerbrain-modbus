@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from modbus_connection import ModbusTimeoutError
-from modbus_connection.mock import MockModbusConnection
+from collections.abc import Callable
+from unittest.mock import patch
+
+from modbus_connection import ModbusConnectionError, ModbusTimeoutError
+from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -20,7 +23,7 @@ from custom_components.cfos_powerbrain.const import (
     DOMAIN,
 )
 from tests.integration.conftest import ENTRY_DATA, ReopenableMockConnection
-from tests.registers import SERIAL
+from tests.registers import SERIAL, ascii_words
 
 
 async def test_user_flow(
@@ -68,11 +71,46 @@ async def test_user_flow_rejects_scan_interval_out_of_range(
         )
 
 
-async def test_user_flow_cannot_connect_then_recovers(
-    hass: HomeAssistant, mock_modbus: dict[int, MockModbusConnection]
-) -> None:
-    unit = mock_modbus[4701].for_unit(1)
+def _no_answer(unit: MockModbusUnit) -> Callable[[], None]:
     unit.fail_requests(ModbusTimeoutError("no answer"))
+    return lambda: unit.fail_requests(None)
+
+
+def _other_vendor(unit: MockModbusUnit) -> Callable[[], None]:
+    unit.holding[8000] = [0, 0x1234]
+    return lambda: unit.holding.update({8000: [0, 0xCF05]})
+
+
+def _no_serial(unit: MockModbusUnit) -> Callable[[], None]:
+    unit.holding[8008] = [0] * 8
+    return lambda: unit.holding.update({8008: ascii_words(SERIAL, 8)})
+
+
+def _unexpected(unit: MockModbusUnit) -> Callable[[], None]:
+    failing = patch(
+        "custom_components.cfos_powerbrain.config_flow.CfosWallbox.async_ensure_setup",
+        side_effect=RuntimeError("boom"),
+    )
+    failing.start()
+    return failing.stop
+
+
+@pytest.mark.parametrize(
+    ("cause", "error"),
+    [
+        (_no_answer, "cannot_connect"),
+        (_other_vendor, "not_cfos"),
+        (_no_serial, "not_cfos"),
+        (_unexpected, "unknown"),
+    ],
+)
+async def test_user_flow_recovers_from_error(
+    hass: HomeAssistant,
+    mock_modbus: dict[int, MockModbusConnection],
+    cause: Callable[[MockModbusUnit], Callable[[], None]],
+    error: str,
+) -> None:
+    undo = cause(mock_modbus[4701].for_unit(1))
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
     )
@@ -80,27 +118,14 @@ async def test_user_flow_cannot_connect_then_recovers(
         result["flow_id"], ENTRY_DATA
     )
     assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "cannot_connect"}
+    assert result["errors"] == {"base": error}
 
-    unit.fail_requests(None)
+    undo()
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], ENTRY_DATA
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-
-
-async def test_user_flow_not_cfos(
-    hass: HomeAssistant, mock_modbus: dict[int, MockModbusConnection]
-) -> None:
-    mock_modbus[4701].for_unit(1).holding[8000] = [0, 0x1234]
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER}
-    )
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], ENTRY_DATA
-    )
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "not_cfos"}
+    assert result["result"].unique_id == SERIAL
 
 
 async def test_user_flow_already_configured(
@@ -186,3 +211,25 @@ async def test_options_flow_rejects_scan_interval_out_of_range(
         await hass.config_entries.options.async_configure(
             result["flow_id"], {CONF_SCAN_INTERVAL: 31, CONF_S0_METERS: []}
         )
+
+
+async def test_reconfigure_flow_recovers_from_error(
+    hass: HomeAssistant,
+    init_integration: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+) -> None:
+    unit = mock_modbus[4701].for_unit(1)
+    unit.fail_requests(ModbusConnectionError("refused"))
+    result = await init_integration.start_reconfigure_flow(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], ENTRY_DATA
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+
+    unit.fail_requests(None)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], ENTRY_DATA
+    )
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"

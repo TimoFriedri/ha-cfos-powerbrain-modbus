@@ -13,15 +13,22 @@ Monitor and control a **cFos Power Brain** wallbox (or Power Brain controller)
 from Home Assistant over **Modbus TCP**, using the
 [Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
 
+[cFos Software GmbH](https://www.cfos-emobility.de) makes the cFos Power
+Brain wallboxes and the Power Brain controller, which other wallbox makers
+build in. Each one has the cFos Charging Manager built in, which does load
+management, solar surplus charging and charging rules for one or many
+charging points. This integration reads and controls the charging point, its
+meters and the Charging Manager, all over Modbus.
+
 The integration asks Home Assistant's `modbus` integration for a shared
 connection to the wallbox (`modbus.async_get_unit`), so it coexists with any
 other integration talking to the same device. You set it up in the UI and
 write no YAML.
 
-> **Status: first release, not yet verified on real hardware.** The register
-> map follows the official [cFos Modbus documentation][cfos-registers] and is
-> covered by tests against a simulated wallbox. Please report what your
-> wallbox shows; see [Reporting problems](#reporting-problems).
+> **Status:** the charging point runs on a real cFos Power Brain Solar
+> wallbox. The Charging Manager device is tested against a simulated SunSpec
+> server built from the cFos documentation, not yet on hardware. Please
+> report what your wallbox shows; see [Reporting problems](#reporting-problems).
 
 ## Features
 
@@ -208,6 +215,17 @@ The Charging Manager follows the same split, per its SunSpec documentation:
 
 #### Action: Set Charging Manager variable
 
+`cfos_powerbrain.set_charging_manager_variable` gives a Charging Manager
+variable a fixed value. This **replaces the formula** the variable had. The
+value is not saved by the Charging Manager and may be set as often as needed.
+The action needs the Charging Manager device switched on in the options.
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `name` | yes | Name of the variable, exactly as set up in the Charging Manager. |
+| `value` | yes | The number to give the variable. |
+| `config_entry_id` | no | The wallbox entry whose Charging Manager to use. Needed only when more than one wallbox is set up. |
+
 ```yaml
 action: cfos_powerbrain.set_charging_manager_variable
 data:
@@ -215,8 +233,8 @@ data:
   value: 1
 ```
 
-Add `config_entry_id` when you have more than one wallbox. An unknown name is
-rejected with the list of the variables the Charging Manager has.
+An unknown name is rejected with the list of the variables the Charging
+Manager has.
 
 ## Requirements
 
@@ -224,6 +242,10 @@ rejected with the list of the variables the Charging Manager has.
 - A cFos Power Brain wallbox or controller reachable on your network, with
   Modbus TCP available on ports 4701 (wallbox) and, for the S0 meters, 4702
   and 4703.
+- A fixed IP address for the wallbox, for example a DHCP reservation in your
+  router. If the address changes anyway, **Reconfigure** updates it.
+- For the Charging Manager device: its SunSpec server switched on, see
+  [Setting up the Charging Manager](#setting-up-the-charging-manager).
 
 ## Installation
 
@@ -263,6 +285,9 @@ example after the wallbox got a new IP address.
 - **Charging Manager**, **Charging Manager port**, **Charging Manager Modbus
   ID**: adds the Charging Manager as its own device; see below.
 
+It can run side by side with the HTTP-API-based
+[`powerbrain` integration][rest-integration]; the two use different domains.
+
 ### Setting up the Charging Manager
 
 1. In the Charging Manager's configuration, under **SunSpec address
@@ -279,8 +304,28 @@ still sets up. The Charging Manager's entities appear once the server answers.
 The Charging Manager also lists the wallboxes and meters it manages under
 Modbus ID + 1. The integration does not read that list yet.
 
-It can run side by side with the HTTP-API-based
-[`powerbrain` integration][rest-integration]; the two use different domains.
+## Removal
+
+1. **Settings → Devices & services → cFos Power Brain (Modbus) → ⋮ →
+   Delete.** This removes the devices and entities and closes the Modbus
+   connections.
+2. Installed through HACS: **HACS → cFos Power Brain (Modbus) → ⋮ → Remove**,
+   then restart Home Assistant. Installed manually: delete
+   `custom_components/cfos_powerbrain` and restart.
+
+What stays on the wallbox afterwards:
+
+- Volatile values (charging current limit, charging enabled, phase mode,
+  relay 2, the Charging Manager's total current limit and flags) keep their
+  last value until the wallbox restarts. Then they fall back to their
+  defaults.
+- Values stored in flash stay as they were last set.
+- With Home Assistant gone, nothing reads the wallbox over Modbus any more.
+  If the wallbox's [Modbus fail-safe](#the-modbus-fail-safe) is on, it applies
+  the fail-safe current once Modbus has been silent for the fail-safe
+  timeout. Check both settings before you remove the integration.
+- If you switched on the Charging Manager's SunSpec server only for this
+  integration, you can switch it off again under **SunSpec address settings**.
 
 ## Home Assistant control and the cFos Charging Manager
 
@@ -404,8 +449,6 @@ counterpart:
 
 - The wallboxes and meters the Charging Manager manages, from its SunSpec
   server under Modbus ID + 1.
-- Optional HTTP API add-on (admin login in the options) for what Modbus does
-  not offer: charging rules, RFID entry, HTTP input meters, the pause reason.
 - Manifest categories (`energy.ev_charging`, `energy.meters_monitoring`) once
   Home Assistant's hassfest accepts them, expected with Home Assistant
   2026.11.
