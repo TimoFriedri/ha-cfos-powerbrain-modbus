@@ -6,8 +6,7 @@
 # cFos Power Brain Wallbox (Modbus) for Home Assistant
 
 [![HACS Custom][hacs-badge]][hacs]
-[![Validate][validate-badge]][validate]
-[![Tests][tests-badge]][tests]
+[![CI][ci-badge]][ci]
 
 Monitor and control a **cFos Power Brain Wallbox**, or a wallbox built around
 the **cFos Power Brain Controller**, from Home Assistant over **Modbus TCP**,
@@ -515,10 +514,8 @@ wallbox controls real hardware; use at your own risk.
 
 [hacs]: https://hacs.xyz
 [hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange.svg
-[validate]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/validate.yml
-[validate-badge]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/validate.yml/badge.svg
-[tests]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/tests.yml
-[tests-badge]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/tests.yml/badge.svg
+[ci]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/ci.yml
+[ci-badge]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/ci.yml/badge.svg
 [issues]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/issues
 [ha-modbus]: https://developers.home-assistant.io/docs/modbus/introduction
 [modbus-connection]: https://github.com/home-assistant-libs/modbus-connection
