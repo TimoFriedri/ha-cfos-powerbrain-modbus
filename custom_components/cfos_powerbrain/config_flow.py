@@ -105,7 +105,7 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for the cFos Power Brain Wallbox."""
 
     VERSION = 1
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
     @staticmethod
     @callback

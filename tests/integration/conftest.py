@@ -96,7 +96,7 @@ def config_entry() -> MockConfigEntry:
         unique_id=SERIAL,
         data=ENTRY_DATA,
         title="cFos Power Brain Wallbox",
-        minor_version=2,
+        minor_version=3,
     )
 
 
