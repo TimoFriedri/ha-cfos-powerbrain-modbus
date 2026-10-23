@@ -12,7 +12,13 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
-from custom_components.cfos_powerbrain.const import CONF_S0_METERS, DOMAIN
+from custom_components.cfos_powerbrain.const import (
+    CONF_CHARGING_MANAGER,
+    CONF_CHARGING_MANAGER_PORT,
+    CONF_CHARGING_MANAGER_UNIT_ID,
+    CONF_S0_METERS,
+    DOMAIN,
+)
 from tests.integration.conftest import ENTRY_DATA, ReopenableMockConnection
 from tests.registers import SERIAL
 
@@ -160,7 +166,14 @@ async def test_options_flow(
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert init_integration.options == {CONF_SCAN_INTERVAL: 5, CONF_S0_METERS: ["1"]}
+    assert init_integration.options == {
+        CONF_SCAN_INTERVAL: 5,
+        CONF_S0_METERS: ["1"],
+        # The Charging Manager stays off unless switched on.
+        CONF_CHARGING_MANAGER: False,
+        CONF_CHARGING_MANAGER_PORT: 502,
+        CONF_CHARGING_MANAGER_UNIT_ID: 1,
+    }
     # The entry reloaded with the S0 meter.
     assert 1 in init_integration.runtime_data.s0_meters
 

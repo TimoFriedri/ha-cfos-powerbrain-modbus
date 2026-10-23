@@ -28,20 +28,23 @@
         "data": {
           "host": "Host",
           "port": "Port",
-          "unit_id": "Modbus-Slave-ID",
-          "scan_interval": "Abfrageintervall"
+          "scan_interval": "Abfrageintervall",
+          "unit_id": "Modbus-Slave-ID"
         },
         "data_description": {
           "host": "IP-Adresse oder Hostname der Wallbox.",
           "port": "Modbus-TCP-Port der Ladestation (Standard 4701).",
-          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1).",
-          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst."
+          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst.",
+          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1)."
         },
         "description": "Eine cFos Power Brain Wallbox über Modbus TCP verbinden. Steuert der eingebaute Lademanager diese Wallbox, kann er von Home Assistant geschriebene Werte überschreiben; siehe Dokumentation."
       }
     }
   },
   "device": {
+    "charging_manager": {
+      "name": "cFos Lademanager"
+    },
     "s0_meter": {
       "name": "S0-Zähler {number}"
     }
@@ -85,8 +88,26 @@
       "fixed_current": {
         "name": "Kabelstrom-Vorgabe"
       },
+      "max_phase_imbalance": {
+        "name": "Maximale Schieflast"
+      },
+      "max_total_current": {
+        "name": "Maximaler Gesamtstrom"
+      },
+      "max_total_current_percent": {
+        "name": "Gesamtstrom-Begrenzung"
+      },
+      "max_wallbox_current": {
+        "name": "Maximaler Wallbox-Gesamtstrom"
+      },
       "nominal_voltage": {
         "name": "Nennspannung {phase}"
+      },
+      "overdraw": {
+        "name": "Überziehung"
+      },
+      "power_reserve": {
+        "name": "Leistungsreserve"
       },
       "pulses_per_kwh": {
         "name": "Impulse pro kWh"
@@ -123,8 +144,29 @@
       "charging_current": {
         "name": "Signalisierter Ladestrom"
       },
+      "consumers_power": {
+        "name": "Summe Verbraucher"
+      },
       "controller_temperature": {
         "name": "Controller-Temperatur"
+      },
+      "fault_power": {
+        "name": "Fehler-Leistung"
+      },
+      "generators_power": {
+        "name": "Summe Erzeuger"
+      },
+      "grid_current": {
+        "name": "Netzstrom {phase}"
+      },
+      "grid_energy_exported": {
+        "name": "Netzeinspeisung Energie"
+      },
+      "grid_energy_imported": {
+        "name": "Netzbezug Energie"
+      },
+      "grid_power": {
+        "name": "Netzbezug"
       },
       "last_rfid": {
         "name": "Letzte RFID"
@@ -134,6 +176,9 @@
       },
       "pulses": {
         "name": "Impulse"
+      },
+      "pv_surplus_power": {
+        "name": "PV-Überschuss"
       },
       "restart_count": {
         "name": "Neustarts"
@@ -146,6 +191,18 @@
       },
       "total_energy": {
         "name": "Gesamtenergie"
+      },
+      "variable": {
+        "name": "Variable {name}"
+      },
+      "wallbox_available_current": {
+        "name": "Verfügbarer Wallboxstrom {phase}"
+      },
+      "wallbox_available_power": {
+        "name": "Verfügbare Wallboxleistung"
+      },
+      "wallbox_used_power": {
+        "name": "Genutzte Wallboxleistung"
       }
     },
     "switch": {
@@ -155,20 +212,41 @@
       "default_charging_enabled": {
         "name": "Laden standardmäßig freigegeben"
       },
+      "flag": {
+        "name": "Flag {number}"
+      },
+      "imbalance_includes_consumers": {
+        "name": "Schieflast inkl. Verbraucher"
+      },
+      "load_management": {
+        "name": "Lastmanagement"
+      },
       "relay2": {
         "name": "Relais 2"
       }
     }
   },
   "exceptions": {
+    "charging_manager_not_enabled": {
+      "message": "Der Lademanager ist für {title} nicht aktiviert. In den Optionen der Integration aktivieren."
+    },
+    "charging_manager_unavailable": {
+      "message": "Der Lademanager kann nicht gelesen werden: {error}"
+    },
     "communication_error": {
       "message": "Fehler bei der Kommunikation mit der Wallbox: {error}"
     },
     "invalid_value": {
       "message": "Die Wallbox akzeptiert diesen Wert nicht: {error}"
     },
+    "models_moved": {
+      "message": "Die SunSpec-Modelle des Lademanagers haben sich verschoben; wird neu eingerichtet."
+    },
     "no_component_answered": {
       "message": "Die Wallbox hat auf keine Registerabfrage geantwortet."
+    },
+    "unknown_variable": {
+      "message": "Der Lademanager hat keine Variable „{name}“. Seine Variablen: {names}."
     },
     "unsupported_device": {
       "message": "Das Gerät meldet sich nicht als cFos Power Brain."
@@ -178,13 +256,23 @@
     }
   },
   "options": {
+    "error": {
+      "charging_manager_cannot_connect": "Verbindung zum Lademanager fehlgeschlagen: {error}",
+      "charging_manager_not_found": "Der SunSpec-Server des Lademanagers antwortet unter diesem Port und dieser Modbus-ID nicht. Unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Lademanagers einschalten."
+    },
     "step": {
       "init": {
         "data": {
+          "charging_manager": "Lademanager",
+          "charging_manager_port": "Port des Lademanagers",
+          "charging_manager_unit_id": "Modbus-ID des Lademanagers",
           "s0_meters": "S0-Zähler",
           "scan_interval": "Abfrageintervall"
         },
         "data_description": {
+          "charging_manager": "Fügt den eingebauten Lademanager als eigenes Gerät hinzu, gelesen und gesteuert über seinen SunSpec-Modbus-Server. Den Server zuerst unter „SunSpec Adress-Einstellungen“ in der Konfiguration des Lademanagers einschalten.",
+          "charging_manager_port": "Unter „SunSpec Adress-Einstellungen“ eingestellter TCP-Port (502 beim Power Brain).",
+          "charging_manager_unit_id": "Unter „SunSpec Adress-Einstellungen“ eingestellte Modbus-ID.",
           "s0_meters": "S0-Zählereingänge des Controllers, die als Geräte angelegt werden. Sie werden über denselben Host auf TCP-Port 4702 (Slave-ID 2) und 4703 (Slave-ID 3) erreicht.",
           "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst."
         }
@@ -197,6 +285,26 @@
         "1": "S0-Zähler 1",
         "2": "S0-Zähler 2"
       }
+    }
+  },
+  "services": {
+    "set_charging_manager_variable": {
+      "description": "Gibt einer Variablen des Lademanagers einen festen Wert. Das ersetzt eine Formel der Variablen. Der Wert wird nicht gespeichert und darf beliebig oft gesetzt werden.",
+      "fields": {
+        "config_entry_id": {
+          "description": "Die Wallbox, deren Lademanager verwendet wird. Nur bei mehr als einer Wallbox nötig.",
+          "name": "Wallbox"
+        },
+        "name": {
+          "description": "Name der Variablen, wie im Lademanager angelegt.",
+          "name": "Name"
+        },
+        "value": {
+          "description": "Der Wert für die Variable.",
+          "name": "Wert"
+        }
+      },
+      "name": "Lademanager-Variable setzen"
     }
   }
 }

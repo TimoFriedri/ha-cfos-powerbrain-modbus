@@ -19,7 +19,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 
 from custom_components.cfos_powerbrain.const import CONF_UNIT_ID, DOMAIN
-from tests.registers import SERIAL, s0_meter, wallbox
+from tests.registers import SERIAL, charging_manager, s0_meter, wallbox
 
 HOST = "192.168.1.50"
 ENTRY_DATA = {CONF_HOST: HOST, CONF_PORT: 4701, CONF_UNIT_ID: 1}
@@ -67,7 +67,9 @@ def connections() -> dict[int, MockModbusConnection]:
     s0_1.for_unit(2).holding.update(s0_meter(0x101))
     s0_2 = ReopenableMockConnection()
     s0_2.for_unit(3).holding.update(s0_meter(0x102))
-    return {4701: evse, 4702: s0_1, 4703: s0_2}
+    manager = ReopenableMockConnection()
+    manager.for_unit(1).holding.update(charging_manager())
+    return {4701: evse, 4702: s0_1, 4703: s0_2, 502: manager}
 
 
 @pytest.fixture

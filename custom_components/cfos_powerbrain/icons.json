@@ -23,6 +23,18 @@
       "fail_safe_duration": {
         "default": "mdi:timer-alert-outline"
       },
+      "max_phase_imbalance": {
+        "default": "mdi:scale-unbalanced"
+      },
+      "max_total_current": {
+        "default": "mdi:current-ac"
+      },
+      "max_total_current_percent": {
+        "default": "mdi:gauge"
+      },
+      "max_wallbox_current": {
+        "default": "mdi:ev-station"
+      },
       "pulses_per_kwh": {
         "default": "mdi:pulse"
       }
@@ -52,14 +64,44 @@
           "waiting": "mdi:ev-plug-type2"
         }
       },
+      "consumers_power": {
+        "default": "mdi:home-lightning-bolt"
+      },
+      "fault_power": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "generators_power": {
+        "default": "mdi:solar-power"
+      },
+      "grid_current": {
+        "default": "mdi:transmission-tower"
+      },
+      "grid_power": {
+        "default": "mdi:transmission-tower"
+      },
       "last_rfid": {
         "default": "mdi:card-account-details-outline"
       },
       "pulses": {
         "default": "mdi:pulse"
       },
+      "pv_surplus_power": {
+        "default": "mdi:solar-power-variant"
+      },
       "restart_count": {
         "default": "mdi:restart"
+      },
+      "variable": {
+        "default": "mdi:variable"
+      },
+      "wallbox_available_current": {
+        "default": "mdi:ev-plug-type2"
+      },
+      "wallbox_available_power": {
+        "default": "mdi:ev-plug-type2"
+      },
+      "wallbox_used_power": {
+        "default": "mdi:ev-station"
       }
     },
     "switch": {
@@ -72,9 +114,26 @@
       "default_charging_enabled": {
         "default": "mdi:ev-station"
       },
+      "flag": {
+        "default": "mdi:flag-outline",
+        "state": {
+          "on": "mdi:flag"
+        }
+      },
+      "imbalance_includes_consumers": {
+        "default": "mdi:scale-unbalanced"
+      },
+      "load_management": {
+        "default": "mdi:scale-balance"
+      },
       "relay2": {
         "default": "mdi:electric-switch"
       }
+    }
+  },
+  "services": {
+    "set_charging_manager_variable": {
+      "service": "mdi:variable"
     }
   }
 }

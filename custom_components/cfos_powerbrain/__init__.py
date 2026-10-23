@@ -9,12 +9,24 @@ from modbus_connection import ModbusTcpParams
 
 from homeassistant.components.modbus import async_get_unit
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.typing import ConfigType
 
-from .cfos_modbus import S0_METER_PORTS, S0_METER_UNIT_IDS, CfosS0Meter, CfosWallbox
+from .cfos_modbus import (
+    DEFAULT_CHARGING_MANAGER_PORT,
+    DEFAULT_CHARGING_MANAGER_UNIT_ID,
+    S0_METER_PORTS,
+    S0_METER_UNIT_IDS,
+    CfosChargingManager,
+    CfosS0Meter,
+    CfosWallbox,
+)
 from .const import (
+    CONF_CHARGING_MANAGER,
+    CONF_CHARGING_MANAGER_PORT,
+    CONF_CHARGING_MANAGER_UNIT_ID,
     CONF_S0_METERS,
     CONF_UNIT_ID,
     DEFAULT_SCAN_INTERVAL,
@@ -23,6 +35,7 @@ from .const import (
     SETTINGS_SCAN_INTERVAL,
 )
 from .coordinator import CfosConfigEntry, CfosCoordinator, CfosRuntimeData, CfosUnitData
+from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -34,6 +47,14 @@ PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Register the actions, whether or not an entry is loaded."""
+    async_setup_services(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
@@ -137,9 +158,91 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
             unique_id_prefix=f"{serial}_s0_{number}",
         )
 
+    if entry.options.get(CONF_CHARGING_MANAGER):
+        runtime_data.charging_manager = await _async_setup_charging_manager(
+            hass, entry, host, serial, interval
+        )
+
     entry.runtime_data = runtime_data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _async_setup_charging_manager(
+    hass: HomeAssistant,
+    entry: CfosConfigEntry,
+    host: str,
+    serial: str,
+    interval: timedelta,
+) -> CfosUnitData[CfosChargingManager]:
+    """Reach the Charging Manager through its SunSpec server, next to the wallbox."""
+    manager = CfosChargingManager(
+        async_get_unit(
+            hass,
+            entry,
+            ModbusTcpParams(
+                host=host,
+                port=entry.options.get(
+                    CONF_CHARGING_MANAGER_PORT, DEFAULT_CHARGING_MANAGER_PORT
+                ),
+            ),
+            entry.options.get(
+                CONF_CHARGING_MANAGER_UNIT_ID, DEFAULT_CHARGING_MANAGER_UNIT_ID
+            ),
+        )
+    )
+    readings = CfosCoordinator(
+        hass,
+        entry,
+        manager,
+        manager.async_update_readings,
+        interval,
+        f"{entry.title} Charging Manager",
+        optional=True,
+    )
+    settings = CfosCoordinator(
+        hass,
+        entry,
+        manager,
+        manager.async_update_settings,
+        SETTINGS_SCAN_INTERVAL,
+        f"{entry.title} Charging Manager settings",
+        optional=True,
+    )
+    await readings.async_refresh()
+    if readings.last_update_success:
+        await settings.async_refresh()
+    else:
+        _LOGGER.warning(
+            "%s: the Charging Manager's SunSpec server does not answer yet; its "
+            "entities are added once it does",
+            entry.title,
+        )
+
+        # Its entities follow the models the scan finds, so set up again
+        # once the server answers rather than leaving them out.
+        @callback
+        def _async_reload_once_answered() -> None:
+            if readings.last_update_success:
+                hass.config_entries.async_schedule_reload(entry.entry_id)
+
+        entry.async_on_unload(readings.async_add_listener(_async_reload_once_answered))
+
+    common = manager.common
+    return CfosUnitData(
+        device=manager,
+        readings=readings,
+        settings=settings,
+        device_info=DeviceInfo(
+            identifiers={(DOMAIN, f"{serial}_charging_manager")},
+            manufacturer=MANUFACTURER,
+            model=(common.model if common else None) or "Charging Manager",
+            translation_key="charging_manager",
+            sw_version=manager.firmware_version,
+            configuration_url=f"http://{host}",
+        ),
+        unique_id_prefix=f"{serial}_charging_manager",
+    )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:

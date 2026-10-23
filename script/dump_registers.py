@@ -5,9 +5,13 @@ Needs only Python 3.12+ and modbus-connection, no Home Assistant:
     pip install "modbus-connection[tmodbus]>=4.12.3"
     python script/dump_registers.py 192.168.1.50
     python script/dump_registers.py 192.168.1.50 --s0 1 --raw
+    python script/dump_registers.py 192.168.1.50 --charging-manager --raw
+
+The Charging Manager is read through its SunSpec server, which has to be
+switched on under "SunSpec address settings" in its configuration.
 
 Attach the output to an issue when a value looks wrong. It contains the serial
-number and the last RFID tag; remove them first if you like.
+numbers and the last RFID tag; remove them first if you like.
 """
 
 from __future__ import annotations
@@ -29,13 +33,17 @@ sys.path.insert(
 )
 
 from cfos_modbus import (
+    DEFAULT_CHARGING_MANAGER_PORT,
+    DEFAULT_CHARGING_MANAGER_UNIT_ID,
     DEFAULT_EVSE_PORT,
     DEFAULT_EVSE_UNIT_ID,
     S0_METER_PORTS,
     S0_METER_UNIT_IDS,
+    CfosChargingManager,
     CfosDevice,
     CfosS0Meter,
     CfosWallbox,
+    PowerBrainUnit,
 )
 
 
@@ -51,10 +59,17 @@ async def _dump(device: CfosDevice, *, raw: bool) -> dict[str, Any]:
     result: dict[str, Any] = {
         "updated": sorted(report.updated),
         "failed": {name: str(err) for name, err in report.failed.items()},
-        "firmware": device.identity.firmware_version,
-        "mapping_version": device.identity.mapping_version,
+        "firmware": device.firmware_version,
     }
-    for name in ("identity", *device.READINGS, *device.SETTINGS):
+    if isinstance(device, PowerBrainUnit):
+        result["mapping_version"] = device.identity.mapping_version
+    if isinstance(device, CfosChargingManager) and device.models is not None:
+        result["models"] = [
+            {"id": model.model_id, "address": model.address, "length": model.length}
+            for model in device.models.chain
+        ]
+        result["variable_names"] = device.variable_names
+    for name in (*device.IDENTITY, *device.READINGS, *device.SETTINGS):
         result[name] = _fields(getattr(device, name))
     if raw:
         result["raw"] = await device.async_read_raw()
@@ -70,6 +85,13 @@ async def main() -> None:
     parser.add_argument(
         "--s0", type=int, choices=sorted(S0_METER_PORTS), action="append", default=[]
     )
+    parser.add_argument(
+        "--charging-manager", action="store_true", help="read the Charging Manager"
+    )
+    parser.add_argument("--cm-port", type=int, default=DEFAULT_CHARGING_MANAGER_PORT)
+    parser.add_argument(
+        "--cm-unit-id", type=int, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
+    )
     parser.add_argument("--raw", action="store_true", help="include raw registers")
     args = parser.parse_args()
 
@@ -81,6 +103,10 @@ async def main() -> None:
         (f"s0_meter_{n}", S0_METER_PORTS[n], S0_METER_UNIT_IDS[n], CfosS0Meter)
         for n in args.s0
     ]
+    if args.charging_manager:
+        targets.append(
+            ("charging_manager", args.cm_port, args.cm_unit_id, CfosChargingManager)
+        )
     for name, port, unit_id, device_type in targets:
         connection = ModbusConnection(ModbusTcpParams(host=args.host, port=port))
         try:

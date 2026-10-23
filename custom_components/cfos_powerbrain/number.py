@@ -12,6 +12,7 @@ from homeassistant.components.number import (
     NumberMode,
 )
 from homeassistant.const import (
+    PERCENTAGE,
     EntityCategory,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
@@ -132,6 +133,47 @@ S0_METER_NUMBERS: tuple[CfosNumberEntityDescription, ...] = (
 )
 
 
+CHARGING_MANAGER_CURRENT_LIMIT = 250.0
+"""Highest current offered for a Charging Manager parameter in the UI, in A."""
+
+CHARGING_MANAGER_NUMBERS: tuple[CfosNumberEntityDescription, ...] = (
+    CfosNumberEntityDescription(
+        key="max_total_current_percent",
+        translation_key="max_total_current_percent",
+        component="limit",
+        field="max_total_current_percent",
+        native_unit_of_measurement=PERCENTAGE,
+        native_min_value=0,
+        native_max_value=100,
+        native_step=1,
+    ),
+    *(
+        CfosNumberEntityDescription(
+            key=field,
+            translation_key=field,
+            component="parameters",
+            field=field,
+            flash=True,
+            device_class=NumberDeviceClass.CURRENT,
+            native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+            native_min_value=0,
+            native_max_value=CHARGING_MANAGER_CURRENT_LIMIT,
+            native_step=0.1,
+            mode=NumberMode.BOX,
+            entity_category=EntityCategory.CONFIG,
+            entity_registry_enabled_default=False,
+        )
+        for field in (
+            "max_total_current",
+            "power_reserve",
+            "overdraw",
+            "max_wallbox_current",
+            "max_phase_imbalance",
+        )
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: CfosConfigEntry,
@@ -150,6 +192,12 @@ async def async_setup_entry(
             CfosNumber(meter, description)
             for description in S0_METER_NUMBERS
             if description.supported(meter.device)
+        )
+    if (manager := runtime_data.charging_manager) is not None:
+        entities.extend(
+            CfosNumber(manager, description)
+            for description in CHARGING_MANAGER_NUMBERS
+            if description.supported(manager.device)
         )
     async_add_entities(entities)
 

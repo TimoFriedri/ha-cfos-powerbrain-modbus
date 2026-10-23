@@ -68,6 +68,39 @@ and across restarts, so the energy dashboard has no gaps. A reading of 0 Wh,
 which the controller reports briefly after it starts, is treated as unknown
 rather than as a meter reset.
 
+**Charging Manager** (optional, its own device *cFos Charging Manager* next to
+the charging point). The built-in Charging Manager is read and controlled
+through its SunSpec Modbus server; see
+[Setting up the Charging Manager](#setting-up-the-charging-manager).
+
+cFos states that the register addresses can change between firmware versions.
+The integration therefore scans the SunSpec model chain from 40000 at startup
+and finds each value by its model and offset, and rescans when the models move.
+The *Register* column shows where each value is on current firmware.
+
+| Register | Model, offset | Entity | Type | Writes | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 40098 | 213 (1st), 28 | Grid power | sensor | read-only | grid consumption |
+| 40074–40079 | 213 (1st), 4–8 | Grid current L1, L2, L3 | sensor, disabled | read-only | |
+| 40130, 40138 | 213 (1st), 60, 68 | Grid energy exported, imported | sensor, disabled | read-only | |
+| 40224 | 213 (2nd), 28 | Consumers power | sensor | read-only | total of the consumers |
+| 40350 | 213 (3rd), 28 | Generators power | sensor | read-only | total of the generators |
+| 40476 | 213 (4th), 28 | PV surplus | sensor | read-only | |
+| 40602 | 213 (5th), 28 | Wallbox power used | sensor | read-only | |
+| 40728 | 213 (6th), 28 | Wallbox power available | sensor | read-only | |
+| 40704–40709 | 213 (6th), 4–8 | Wallbox current available L1, L2, L3 | sensor, disabled | read-only | |
+| 40854 | 213 (7th), 28 | Fault power | sensor | read-only | |
+| 40954 | 60000, 2 | Maximum total current | config, disabled | **flash** | |
+| 40956 | 60000, 4 | Power reserve | config, disabled | **flash** | |
+| 40958 | 60000, 6 | Overdraw | config, disabled | **flash** | |
+| 40960 | 60000, 8 | Maximum wallbox current | config, disabled | **flash** | total of all wallboxes, per phase |
+| 40962 | 60000, 10 | Maximum phase imbalance | config, disabled | **flash** | |
+| 40964 | 60000, 12 | Load management | config, disabled | **flash** | switch |
+| 40966 | 60000, 14 | Imbalance includes consumers | config, disabled | **flash** | switch |
+| 40968 | 60000, 16 | Total current limit | number | volatile | percent of the maximum total current |
+| 40972–41003 | 60001, 2–33 | Flag 1 … Flag 32 | switch, disabled | volatile | `CM._flag1` … `CM._flag32` in formulas |
+| from 41006 | 60002 | Variable *name* | sensor | volatile | one per Charging Manager variable; set with the [action](#action-set-charging-manager-variable) |
+
 ## Writing values: volatile or flash
 
 The controller stores most writable registers in its flash memory. Flash
@@ -149,6 +182,42 @@ resets. The integration protects them:
 Set them once to suit your installation, and do not change them from
 automations.
 
+### Charging Manager values
+
+The Charging Manager follows the same split, per its SunSpec documentation:
+
+- **Volatile:**
+  - **Total current limit** (40968): the maximum total current in percent,
+    0–100. cFos describes it as the way to adjust the charging power
+    dynamically, for example at the grid operator's request. Because it
+    lowers the total current the Charging Manager shares out among its
+    charging points, it is also a way to steer charging from Home Assistant
+    while the Charging Manager stays in control.
+  - **Flag 1–32** (model 60001): on/off values that the Charging Manager's
+    formulas and charging rules can read as `CM._flag1` … `CM._flag32`.
+    Use them to hand a decision from Home Assistant to a charging rule,
+    such as "cheap electricity now".
+  - **Variables** (model 60002): writing a value **replaces the formula**
+    the variable had with that fixed value. That is why variables are
+    read-only sensors, and writing is the separate action below.
+- **Flash:** the parameters of model 60000 (maximum total current, power
+  reserve, overdraw, maximum wallbox current, maximum phase imbalance, load
+  management and imbalance including consumers). The Charging Manager saves
+  a change within 150 s. Like the wallbox's flash values, their entities are
+  disabled by default and unchanged values are not written.
+
+#### Action: Set Charging Manager variable
+
+```yaml
+action: cfos_powerbrain.set_charging_manager_variable
+data:
+  name: pv_mode   # as set up in the Charging Manager
+  value: 1
+```
+
+Add `config_entry_id` when you have more than one wallbox. An unknown name is
+rejected with the list of the variables the Charging Manager has.
+
 ## Requirements
 
 - Home Assistant **2026.10.0** or newer.
@@ -191,6 +260,24 @@ example after the wallbox got a new IP address.
 - **Polling interval**: change the interval set during setup (1–30 s).
   Settings such as the fail-safe are read every 5 minutes regardless.
 - **S0 meters**: adds S0 meter 1 and/or 2 as devices.
+- **Charging Manager**, **Charging Manager port**, **Charging Manager Modbus
+  ID**: adds the Charging Manager as its own device; see below.
+
+### Setting up the Charging Manager
+
+1. In the Charging Manager's configuration, under **SunSpec address
+   settings**, enter a TCP port and a Modbus ID. On the Power Brain the port
+   is 502. This switches on the Charging Manager's SunSpec Modbus server.
+2. In the integration's options, switch on **Charging Manager** and enter the
+   same port and Modbus ID. The integration checks that the server answers
+   before it saves the options.
+
+The *cFos Charging Manager* device then appears next to the charging point.
+If the server does not answer when Home Assistant starts, the charging point
+still sets up. The Charging Manager's entities appear once the server answers.
+
+The Charging Manager also lists the wallboxes and meters it manages under
+Modbus ID + 1. The integration does not read that list yet.
 
 It can run side by side with the HTTP-API-based
 [`powerbrain` integration][rest-integration]; the two use different domains.
@@ -217,10 +304,14 @@ control cycle and sets it on the wallbox. Then:
 - Reading is unaffected: all sensors show what the wallbox is doing,
   whoever decided it.
 
-Use the integration mainly for monitoring in this setup, and steer charging
-through the Charging Manager. The planned HTTP add-on, see
-[Roadmap](#roadmap), will expose the Charging Manager's own controls
-(charging rules, overrides, variables).
+In this setup, steer charging through the Charging Manager instead. With the
+[Charging Manager device](#setting-up-the-charging-manager) enabled,
+Home Assistant can do that over Modbus:
+
+- **Total current limit** lowers the total current the Charging Manager
+  shares out among its charging points.
+- **Flags** and **variables** feed the Charging Manager's charging rules and
+  formulas, such as a rule that charges only while `CM._flag1` is set.
 
 ### When Home Assistant controls the wallbox
 
@@ -288,9 +379,10 @@ This only works when Home Assistant controls the wallbox; see
 
 ## Compared with the HTTP API integration
 
-Modbus covers the wallbox itself. Features of the
-[HTTP-API integration][rest-integration] that belong to the Charging Manager
-have no Modbus register:
+The wallbox registers cover the charging point; the Charging Manager's
+SunSpec server covers its values, parameters, flags and variables. Some
+features of the [HTTP-API integration][rest-integration] have no Modbus
+counterpart:
 
 | Feature | This integration |
 | --- | --- |
@@ -299,31 +391,41 @@ have no Modbus register:
 | 1/3-phase switching | ✅ |
 | Session energy | ✅ (derived from the meter) |
 | Used phases | ✅ (derived from the phase currents) |
-| Charging rules (get/set/update), user rules switch | ❌ Charging Manager only, planned |
-| Enter RFID/PIN, Charging Manager variables and parameters | ❌ Charging Manager only, planned |
-| HTTP input meters (`set_meter`) | ❌ Charging Manager only, planned |
-| Pause reason, pause time | ❌ Charging Manager only, planned |
-| Other devices managed by the Charging Manager | ❌ Charging Manager only, planned |
+| Charging Manager variables (`set_variable`) | ✅ (action, Charging Manager device) |
+| Charging Manager parameters (`set_params`) | ✅ for the parameters of model 60000 |
+| Grid, consumer, generator, PV surplus and wallbox power | ✅ (Charging Manager device) |
+| Charging rules (get/set/update), user rules switch | ❌ no Modbus counterpart; flags can feed existing rules |
+| Enter RFID/PIN | ❌ no Modbus counterpart |
+| HTTP input meters (`set_meter`) | ❌ no Modbus counterpart |
+| Pause reason, pause time | ❌ no Modbus counterpart |
+| Other devices managed by the Charging Manager | ❌ not yet; available under Modbus ID + 1 |
 
 ## Roadmap
 
-- Optional HTTP API add-on (admin login in the options) for the Charging
-  Manager features in the table above.
+- The wallboxes and meters the Charging Manager manages, from its SunSpec
+  server under Modbus ID + 1.
+- Optional HTTP API add-on (admin login in the options) for what Modbus does
+  not offer: charging rules, RFID entry, HTTP input meters, the pause reason.
 
 ## Reporting problems
 
 1. Download diagnostics: **Settings → Devices & services → cFos Power Brain
    (Modbus) → ⋮ → Download diagnostics**. It contains the raw value of every
-   register the integration reads, with the serial number and RFID tag
-   redacted.
+   register the integration reads, with the serial numbers and RFID tag
+   redacted. For the Charging Manager it also lists the SunSpec models found
+   and their addresses.
 2. Or, without Home Assistant, run
-   `python script/dump_registers.py <host> --raw` (needs
+   `python script/dump_registers.py <host> --raw`, adding
+   `--charging-manager` to include the Charging Manager (needs
    `pip install "modbus-connection[tmodbus]>=4.12.3"`).
 3. Open an [issue][issues] with the file and what you expected to see.
 
 The firmware version decoding (`product_version` / `product_build`, registers
 8004–8005) is the part most likely to need adjusting; the register
-documentation is ambiguous there.
+documentation is ambiguous there. The same goes for the Charging Manager
+variables (model 60002): the cFos documentation gives two layouts, and the
+integration picks the one that matches the names it reads. If variable names
+look wrong, please include the diagnostics.
 
 ## How it is built
 
@@ -334,8 +436,10 @@ integration has two layers:
   on [`modbus-connection`][modbus-connection], with no Home Assistant imports.
   It maps the register map to typed components (identity, status, meter,
   settings, health, S0 meters), reads only documented register ranges and
-  validates values before writing. It is vendored here so HACS can install
-  it, and can move to its own PyPI package unchanged.
+  validates values before writing. For the Charging Manager it scans the
+  SunSpec model chain and places components at the models it finds. It is
+  vendored here so HACS can install it, and can move to its own PyPI package
+  unchanged.
 - `custom_components/cfos_powerbrain/`: the Home Assistant integration. It
   has the config flow, the coordinators and the entities, and gets its Modbus
   units from the `modbus` integration.

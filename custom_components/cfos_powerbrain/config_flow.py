@@ -18,6 +18,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -27,13 +28,19 @@ from homeassistant.helpers.selector import (
 )
 
 from .cfos_modbus import (
+    DEFAULT_CHARGING_MANAGER_PORT,
+    DEFAULT_CHARGING_MANAGER_UNIT_ID,
     DEFAULT_EVSE_PORT,
     DEFAULT_EVSE_UNIT_ID,
     S0_METER_PORTS,
+    CfosChargingManager,
     CfosWallbox,
     UnsupportedDeviceError,
 )
 from .const import (
+    CONF_CHARGING_MANAGER,
+    CONF_CHARGING_MANAGER_PORT,
+    CONF_CHARGING_MANAGER_UNIT_ID,
     CONF_S0_METERS,
     CONF_UNIT_ID,
     DEFAULT_NAME,
@@ -179,31 +186,77 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
         return None
 
 
+async def _async_probe_charging_manager(
+    hass: HomeAssistant, host: str, port: int, unit_id: int
+) -> None:
+    """Find the Charging Manager's SunSpec server, or raise."""
+    params = ModbusTcpParams(host=host, port=port)
+    async with async_get_temporary_unit(hass, params, unit_id) as unit:
+        await CfosChargingManager(unit).async_ensure_setup()
+
+
+OPTIONS_SCHEMA = probatio.Schema(
+    {
+        **SCAN_INTERVAL_SCHEMA,
+        probatio.Required(CONF_S0_METERS, default=[]): SelectSelector(
+            SelectSelectorConfig(
+                options=[str(number) for number in S0_METER_PORTS],
+                multiple=True,
+                translation_key=CONF_S0_METERS,
+            )
+        ),
+        probatio.Required(CONF_CHARGING_MANAGER, default=False): BooleanSelector(),
+        probatio.Required(
+            CONF_CHARGING_MANAGER_PORT, default=DEFAULT_CHARGING_MANAGER_PORT
+        ): probatio.All(
+            NumberSelector(
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
+            ),
+            probatio.Coerce(int),
+        ),
+        probatio.Required(
+            CONF_CHARGING_MANAGER_UNIT_ID, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
+        ): probatio.All(
+            NumberSelector(
+                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=247)
+            ),
+            probatio.Coerce(int),
+        ),
+    }
+)
+
+
 class CfosOptionsFlow(OptionsFlowWithReload):
-    """Polling interval and the optional S0 meters."""
+    """Polling interval, the S0 meters and the Charging Manager."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(data=user_input)
-
-        schema = probatio.Schema(
-            {
-                **SCAN_INTERVAL_SCHEMA,
-                probatio.Required(CONF_S0_METERS, default=[]): SelectSelector(
-                    SelectSelectorConfig(
-                        options=[str(number) for number in S0_METER_PORTS],
-                        multiple=True,
-                        translation_key=CONF_S0_METERS,
+            if user_input[CONF_CHARGING_MANAGER]:
+                try:
+                    await _async_probe_charging_manager(
+                        self.hass,
+                        self.config_entry.data[CONF_HOST],
+                        user_input[CONF_CHARGING_MANAGER_PORT],
+                        user_input[CONF_CHARGING_MANAGER_UNIT_ID],
                     )
-                ),
-            }
-        )
+                except UnsupportedDeviceError:
+                    errors["base"] = "charging_manager_not_found"
+                except (ModbusError, HomeAssistantError) as err:
+                    errors["base"] = "charging_manager_cannot_connect"
+                    placeholders["error"] = str(err)
+            if not errors:
+                return self.async_create_entry(data=user_input)
+
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
-                schema, self.config_entry.options
+                OPTIONS_SCHEMA, user_input or self.config_entry.options
             ),
+            errors=errors,
+            description_placeholders=placeholders,
         )

@@ -1,0 +1,21 @@
+set_charging_manager_variable:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: cfos_powerbrain
+    name:
+      required: true
+      example: "pv_mode"
+      selector:
+        text:
+    value:
+      required: true
+      example: 1
+      selector:
+        number:
+          min: -1000000
+          max: 1000000
+          step: any
+          mode: box

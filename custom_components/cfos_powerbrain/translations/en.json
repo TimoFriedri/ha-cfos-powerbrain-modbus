@@ -28,20 +28,23 @@
         "data": {
           "host": "Host",
           "port": "Port",
-          "unit_id": "Modbus slave ID",
-          "scan_interval": "Polling interval"
+          "scan_interval": "Polling interval",
+          "unit_id": "Modbus slave ID"
         },
         "data_description": {
           "host": "IP address or host name of the wallbox.",
           "port": "Modbus TCP port of the charging station (4701 by default).",
-          "unit_id": "Modbus slave ID of the charging station (1 by default).",
-          "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering."
+          "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering.",
+          "unit_id": "Modbus slave ID of the charging station (1 by default)."
         },
         "description": "Connect to a cFos Power Brain wallbox over Modbus TCP. If the built-in Charging Manager controls this wallbox, values written from Home Assistant can be overwritten by it; see the documentation."
       }
     }
   },
   "device": {
+    "charging_manager": {
+      "name": "cFos Charging Manager"
+    },
     "s0_meter": {
       "name": "S0 meter {number}"
     }
@@ -85,8 +88,26 @@
       "fixed_current": {
         "name": "Cable current override"
       },
+      "max_phase_imbalance": {
+        "name": "Maximum phase imbalance"
+      },
+      "max_total_current": {
+        "name": "Maximum total current"
+      },
+      "max_total_current_percent": {
+        "name": "Total current limit"
+      },
+      "max_wallbox_current": {
+        "name": "Maximum wallbox current"
+      },
       "nominal_voltage": {
         "name": "Nominal voltage {phase}"
+      },
+      "overdraw": {
+        "name": "Overdraw"
+      },
+      "power_reserve": {
+        "name": "Power reserve"
       },
       "pulses_per_kwh": {
         "name": "Pulses per kWh"
@@ -123,8 +144,29 @@
       "charging_current": {
         "name": "Signaled charging current"
       },
+      "consumers_power": {
+        "name": "Consumers power"
+      },
       "controller_temperature": {
         "name": "Controller temperature"
+      },
+      "fault_power": {
+        "name": "Fault power"
+      },
+      "generators_power": {
+        "name": "Generators power"
+      },
+      "grid_current": {
+        "name": "Grid current {phase}"
+      },
+      "grid_energy_exported": {
+        "name": "Grid energy exported"
+      },
+      "grid_energy_imported": {
+        "name": "Grid energy imported"
+      },
+      "grid_power": {
+        "name": "Grid power"
       },
       "last_rfid": {
         "name": "Last RFID"
@@ -134,6 +176,9 @@
       },
       "pulses": {
         "name": "Pulses"
+      },
+      "pv_surplus_power": {
+        "name": "PV surplus"
       },
       "restart_count": {
         "name": "Restarts"
@@ -146,6 +191,18 @@
       },
       "total_energy": {
         "name": "Total energy"
+      },
+      "variable": {
+        "name": "Variable {name}"
+      },
+      "wallbox_available_current": {
+        "name": "Wallbox current available {phase}"
+      },
+      "wallbox_available_power": {
+        "name": "Wallbox power available"
+      },
+      "wallbox_used_power": {
+        "name": "Wallbox power used"
       }
     },
     "switch": {
@@ -155,20 +212,41 @@
       "default_charging_enabled": {
         "name": "Default charging enabled"
       },
+      "flag": {
+        "name": "Flag {number}"
+      },
+      "imbalance_includes_consumers": {
+        "name": "Imbalance includes consumers"
+      },
+      "load_management": {
+        "name": "Load management"
+      },
       "relay2": {
         "name": "Relay 2"
       }
     }
   },
   "exceptions": {
+    "charging_manager_not_enabled": {
+      "message": "The Charging Manager is not enabled for {title}. Enable it in the integration options."
+    },
+    "charging_manager_unavailable": {
+      "message": "The Charging Manager cannot be read: {error}"
+    },
     "communication_error": {
       "message": "Error communicating with the wallbox: {error}"
     },
     "invalid_value": {
       "message": "The wallbox does not accept this value: {error}"
     },
+    "models_moved": {
+      "message": "The Charging Manager's SunSpec models moved; setting up again."
+    },
     "no_component_answered": {
       "message": "The wallbox answered none of the register reads."
+    },
+    "unknown_variable": {
+      "message": "The Charging Manager has no variable \"{name}\". Its variables: {names}."
     },
     "unsupported_device": {
       "message": "The device does not identify as a cFos Power Brain."
@@ -178,13 +256,23 @@
     }
   },
   "options": {
+    "error": {
+      "charging_manager_cannot_connect": "Failed to connect to the Charging Manager: {error}",
+      "charging_manager_not_found": "The Charging Manager's SunSpec server does not answer at this port and Modbus ID. Switch it on under \"SunSpec address settings\" in the Charging Manager configuration."
+    },
     "step": {
       "init": {
         "data": {
+          "charging_manager": "Charging Manager",
+          "charging_manager_port": "Charging Manager port",
+          "charging_manager_unit_id": "Charging Manager Modbus ID",
           "s0_meters": "S0 meters",
           "scan_interval": "Polling interval"
         },
         "data_description": {
+          "charging_manager": "Adds the built-in Charging Manager as its own device, read and controlled through its SunSpec Modbus server. Switch the server on first under \"SunSpec address settings\" in the Charging Manager configuration.",
+          "charging_manager_port": "TCP port set under \"SunSpec address settings\" (502 on the Power Brain).",
+          "charging_manager_unit_id": "Modbus ID set under \"SunSpec address settings\".",
           "s0_meters": "S0 meter inputs of the controller to add as devices. They are reached on the same host at TCP port 4702 (slave ID 2) and 4703 (slave ID 3).",
           "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering."
         }
@@ -197,6 +285,26 @@
         "1": "S0 meter 1",
         "2": "S0 meter 2"
       }
+    }
+  },
+  "services": {
+    "set_charging_manager_variable": {
+      "description": "Gives a Charging Manager variable a fixed value. This replaces a formula the variable had. The value is not saved and may be set as often as needed.",
+      "fields": {
+        "config_entry_id": {
+          "description": "The wallbox whose Charging Manager to use. Needed only with more than one wallbox.",
+          "name": "Wallbox"
+        },
+        "name": {
+          "description": "Name of the variable, as set up in the Charging Manager.",
+          "name": "Name"
+        },
+        "value": {
+          "description": "The value to give the variable.",
+          "name": "Value"
+        }
+      },
+      "name": "Set Charging Manager variable"
     }
   }
 }

@@ -9,6 +9,7 @@ import logging
 
 from modbus_connection import ModbusError
 from modbus_connection.model import UpdateReport
+from modbus_connection.model.sunspec import SunSpecError, SunSpecMapShiftError
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -16,7 +17,13 @@ from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .cfos_modbus import CfosDevice, CfosS0Meter, CfosWallbox, UnsupportedDeviceError
+from .cfos_modbus import (
+    CfosChargingManager,
+    CfosDevice,
+    CfosS0Meter,
+    CfosWallbox,
+    UnsupportedDeviceError,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -37,8 +44,14 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
         poll: Callable[[], Awaitable[UpdateReport]],
         interval: timedelta,
         name: str,
+        *,
+        optional: bool = False,
     ) -> None:
-        """Initialize the coordinator."""
+        """Initialize the coordinator.
+
+        An ``optional`` device, like the Charging Manager, leaves its entities
+        unavailable when it cannot be used instead of failing the entry.
+        """
         super().__init__(
             hass,
             _LOGGER,
@@ -48,6 +61,7 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
         )
         self.device = device
         self._poll = poll
+        self._optional = optional
         self._failing: set[str] = set()
 
     async def _async_update_data(self) -> UpdateReport:
@@ -55,16 +69,28 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
         try:
             report = await self._poll()
         except UnsupportedDeviceError as err:
+            if self._optional:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="charging_manager_unavailable",
+                    translation_placeholders={"error": str(err)},
+                ) from err
             raise ConfigEntryError(
                 translation_domain=DOMAIN, translation_key="unsupported_device"
             ) from err
-        except ModbusError as err:
+        except SunSpecMapShiftError as err:
+            # A firmware update moved the models: set up again to rescan them.
+            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+            raise UpdateFailed(
+                translation_domain=DOMAIN, translation_key="models_moved"
+            ) from err
+        except (ModbusError, SunSpecError) as err:
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="communication_error",
                 translation_placeholders={"error": str(err)},
             ) from err
-        if not report.updated:
+        if report.failed and not report.updated:
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="no_component_answered",
@@ -113,3 +139,4 @@ class CfosRuntimeData:
 
     wallbox: CfosUnitData[CfosWallbox]
     s0_meters: dict[int, CfosUnitData[CfosS0Meter]] = field(default_factory=dict)
+    charging_manager: CfosUnitData[CfosChargingManager] | None = None

@@ -11,6 +11,9 @@ DEFAULT_NAME: Final = "cFos Power Brain"
 
 CONF_UNIT_ID: Final = "unit_id"
 CONF_S0_METERS: Final = "s0_meters"
+CONF_CHARGING_MANAGER: Final = "charging_manager"
+CONF_CHARGING_MANAGER_PORT: Final = "charging_manager_port"
+CONF_CHARGING_MANAGER_UNIT_ID: Final = "charging_manager_unit_id"
 
 DEFAULT_SCAN_INTERVAL: Final = 10
 """Seconds between two reads of the live values."""
