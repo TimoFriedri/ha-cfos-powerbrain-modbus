@@ -64,8 +64,13 @@ hassfest and the HACS validation.
 - **Translations:** `strings.json` and `translations/en.json` are identical;
   `translations/de.json` is kept in sync. Errors raised to the user use
   translation keys.
-- **No config entry migrations** unless agreed first; breaking changes are
-  released as such and documented in the README.
+- **Config entry migrations:** when a change alters what an existing entry
+  stores (data, options) or how its entities are identified (unique IDs),
+  migrate existing entries in `async_migrate_entry` instead of asking users to
+  set the integration up again. Bump the config flow's `MINOR_VERSION` for a
+  compatible change and `VERSION` for an incompatible one, and test the
+  migration from each older version. 0.3.0 skipped this once, during early
+  development. Breaking changes are documented in the README.
 - **Keep the docs current:** a new entity goes into the README feature tables
   (ordered by register), a new option into the configuration section.
 

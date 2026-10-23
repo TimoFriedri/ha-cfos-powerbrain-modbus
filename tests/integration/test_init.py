@@ -175,7 +175,7 @@ async def test_entry_from_0_2_is_left_as_it_is(
     mock_modbus: dict[int, MockModbusConnection],
     entity_registry: er.EntityRegistry,
 ) -> None:
-    """Nothing is migrated: an older entry keeps its title and entity IDs."""
+    """An entry set up with 0.2 keeps its title and entity IDs."""
     entry = MockConfigEntry(
         domain=DOMAIN, unique_id=SERIAL, data=ENTRY_DATA, title="cFos Power Brain"
     )
