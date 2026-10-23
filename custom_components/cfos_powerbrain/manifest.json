@@ -1,7 +1,6 @@
 {
   "domain": "cfos_powerbrain",
   "name": "cFos Power Brain (Modbus)",
-  "categories": ["energy.ev_charging", "energy.meters_monitoring"],
   "codeowners": ["@TimoFriedri"],
   "config_flow": true,
   "dependencies": ["modbus"],

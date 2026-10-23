@@ -406,6 +406,9 @@ counterpart:
   server under Modbus ID + 1.
 - Optional HTTP API add-on (admin login in the options) for what Modbus does
   not offer: charging rules, RFID entry, HTTP input meters, the pause reason.
+- Manifest categories (`energy.ev_charging`, `energy.meters_monitoring`) once
+  Home Assistant's hassfest accepts them, expected with Home Assistant
+  2026.11.
 
 ## Reporting problems
 
