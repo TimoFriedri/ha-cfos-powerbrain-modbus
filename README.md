@@ -219,7 +219,8 @@ The Charging Manager follows the same split, per its SunSpec documentation:
 `cfos_powerbrain.set_charging_manager_variable` gives a Charging Manager
 variable a fixed value. This **replaces the formula** the variable had. The
 value is not saved by the Charging Manager and may be set as often as needed.
-The action needs the Charging Manager device switched on in the options.
+The action needs the Charging Manager device switched on, during setup or
+in the options.
 
 | Field | Required | Description |
 | --- | --- | --- |
@@ -305,10 +306,15 @@ then enter:
 | Port | 4701 | Modbus TCP port of the charging station |
 | Modbus slave ID | 1 | Slave ID of the charging station |
 | Polling interval | 10 s | Seconds between reads of the live values, 1–30 |
+| Charging Manager | off | Adds the Charging Manager as its own device; see [below](#setting-up-the-charging-manager) |
+| Charging Manager port | 502 | TCP port of the Charging Manager's SunSpec server |
+| Charging Manager Modbus ID | 1 | Modbus ID of the Charging Manager's SunSpec server |
 
 The integration identifies the device by its vendor ID and serial number
-before it creates the entry. **Reconfigure** changes the address later, for
-example after the wallbox got a new IP address.
+before it creates the entry. With the Charging Manager switched on, it also
+checks that the Charging Manager's SunSpec server answers. **Reconfigure**
+changes the address later, for example after the wallbox got a new IP
+address.
 
 **Options** (the gear on the integration entry):
 
@@ -316,7 +322,8 @@ example after the wallbox got a new IP address.
   Settings such as the fail-safe are read every 5 minutes regardless.
 - **S0 meters**: adds S0 meter 1 and/or 2 as devices.
 - **Charging Manager**, **Charging Manager port**, **Charging Manager Modbus
-  ID**: adds the Charging Manager as its own device; see below.
+  ID**: switch the Charging Manager on or off, or change its port and Modbus
+  ID, as set during setup.
 
 It can run side by side with the HTTP-API-based
 [`powerbrain` integration][rest-integration]; the two use different domains.
@@ -326,9 +333,9 @@ It can run side by side with the HTTP-API-based
 1. In the Charging Manager's configuration, under **SunSpec address
    settings**, enter a TCP port and a Modbus ID. On the cFos Power Brain
    Wallbox the port is 502. This switches on the Charging Manager's SunSpec Modbus server.
-2. In the integration's options, switch on **Charging Manager** and enter the
-   same port and Modbus ID. The integration checks that the server answers
-   before it saves the options.
+2. When adding the integration, or later in its options, switch on
+   **Charging Manager** and enter the same port and Modbus ID. The integration
+   checks that the server answers before it saves them.
 
 The *cFos Charging Manager* device then appears next to the charging point.
 If the server does not answer when Home Assistant starts, the charging point

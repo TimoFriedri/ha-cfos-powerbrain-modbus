@@ -86,7 +86,29 @@ SCAN_INTERVAL_SCHEMA = {
     ),
 }
 
-STEP_USER_DATA_SCHEMA = CONNECTION_SCHEMA.extend(SCAN_INTERVAL_SCHEMA)
+CHARGING_MANAGER_SCHEMA = {
+    probatio.Required(CONF_CHARGING_MANAGER, default=False): BooleanSelector(),
+    probatio.Required(
+        CONF_CHARGING_MANAGER_PORT, default=DEFAULT_CHARGING_MANAGER_PORT
+    ): probatio.All(
+        NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
+        ),
+        probatio.Coerce(int),
+    ),
+    probatio.Required(
+        CONF_CHARGING_MANAGER_UNIT_ID, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
+    ): probatio.All(
+        NumberSelector(
+            NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=247)
+        ),
+        probatio.Coerce(int),
+    ),
+}
+
+STEP_USER_DATA_SCHEMA = CONNECTION_SCHEMA.extend(
+    {**SCAN_INTERVAL_SCHEMA, **CHARGING_MANAGER_SCHEMA}
+)
 
 
 async def _async_probe(hass: HomeAssistant, data: dict[str, Any]) -> str:
@@ -99,6 +121,42 @@ async def _async_probe(hass: HomeAssistant, data: dict[str, Any]) -> str:
     if not serial:
         raise UnsupportedDeviceError("The wallbox reports no serial number")
     return serial
+
+
+async def _async_probe_charging_manager(
+    hass: HomeAssistant, host: str, port: int, unit_id: int
+) -> None:
+    """Find the Charging Manager's SunSpec server, or raise."""
+    params = ModbusTcpParams(host=host, port=port)
+    async with async_get_temporary_unit(hass, params, unit_id) as unit:
+        await CfosChargingManager(unit).async_ensure_setup()
+
+
+async def _async_validate_charging_manager(
+    hass: HomeAssistant,
+    host: str,
+    options: dict[str, Any],
+    errors: dict[str, str],
+    placeholders: dict[str, str],
+) -> None:
+    """Probe the Charging Manager if it is switched on; fill in the errors."""
+    if not options[CONF_CHARGING_MANAGER]:
+        return
+    try:
+        await _async_probe_charging_manager(
+            hass,
+            host,
+            options[CONF_CHARGING_MANAGER_PORT],
+            options[CONF_CHARGING_MANAGER_UNIT_ID],
+        )
+    except UnsupportedDeviceError:
+        errors["base"] = "charging_manager_not_found"
+    except (ModbusError, HomeAssistantError) as err:
+        errors["base"] = "charging_manager_cannot_connect"
+        placeholders["error"] = str(err)
+    except Exception:
+        _LOGGER.exception("Unexpected error looking for the Charging Manager")
+        errors["base"] = "unknown"
 
 
 class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -115,24 +173,28 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Ask where the wallbox is and how often to poll it, then identify it."""
+        """Ask for the wallbox, the polling interval and the Charging Manager."""
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
         if user_input is not None:
-            # How to reach the wallbox is data; the interval stays an option.
-            options = {CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL]}
+            # How to reach the wallbox is data; the rest can change in the options.
             data = {
-                key: value
-                for key, value in user_input.items()
-                if key != CONF_SCAN_INTERVAL
+                key: user_input[key] for key in (CONF_HOST, CONF_PORT, CONF_UNIT_ID)
+            }
+            options = {
+                key: value for key, value in user_input.items() if key not in data
             }
             serial = await self._async_validate(data, errors, placeholders)
             if serial is not None:
                 await self.async_set_unique_id(serial)
                 self._abort_if_unique_id_configured(updates=data)
-                return self.async_create_entry(
-                    title=DEFAULT_NAME, data=data, options=options
+                await _async_validate_charging_manager(
+                    self.hass, data[CONF_HOST], options, errors, placeholders
                 )
+                if not errors:
+                    return self.async_create_entry(
+                        title=DEFAULT_NAME, data=data, options=options
+                    )
 
         return self.async_show_form(
             step_id="user",
@@ -186,15 +248,6 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
         return None
 
 
-async def _async_probe_charging_manager(
-    hass: HomeAssistant, host: str, port: int, unit_id: int
-) -> None:
-    """Find the Charging Manager's SunSpec server, or raise."""
-    params = ModbusTcpParams(host=host, port=port)
-    async with async_get_temporary_unit(hass, params, unit_id) as unit:
-        await CfosChargingManager(unit).async_ensure_setup()
-
-
 OPTIONS_SCHEMA = probatio.Schema(
     {
         **SCAN_INTERVAL_SCHEMA,
@@ -205,23 +258,7 @@ OPTIONS_SCHEMA = probatio.Schema(
                 translation_key=CONF_S0_METERS,
             )
         ),
-        probatio.Required(CONF_CHARGING_MANAGER, default=False): BooleanSelector(),
-        probatio.Required(
-            CONF_CHARGING_MANAGER_PORT, default=DEFAULT_CHARGING_MANAGER_PORT
-        ): probatio.All(
-            NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
-            ),
-            probatio.Coerce(int),
-        ),
-        probatio.Required(
-            CONF_CHARGING_MANAGER_UNIT_ID, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
-        ): probatio.All(
-            NumberSelector(
-                NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=247)
-            ),
-            probatio.Coerce(int),
-        ),
+        **CHARGING_MANAGER_SCHEMA,
     }
 )
 
@@ -236,19 +273,13 @@ class CfosOptionsFlow(OptionsFlowWithReload):
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
         if user_input is not None:
-            if user_input[CONF_CHARGING_MANAGER]:
-                try:
-                    await _async_probe_charging_manager(
-                        self.hass,
-                        self.config_entry.data[CONF_HOST],
-                        user_input[CONF_CHARGING_MANAGER_PORT],
-                        user_input[CONF_CHARGING_MANAGER_UNIT_ID],
-                    )
-                except UnsupportedDeviceError:
-                    errors["base"] = "charging_manager_not_found"
-                except (ModbusError, HomeAssistantError) as err:
-                    errors["base"] = "charging_manager_cannot_connect"
-                    placeholders["error"] = str(err)
+            await _async_validate_charging_manager(
+                self.hass,
+                self.config_entry.data[CONF_HOST],
+                user_input,
+                errors,
+                placeholders,
+            )
             if not errors:
                 return self.async_create_entry(data=user_input)
 

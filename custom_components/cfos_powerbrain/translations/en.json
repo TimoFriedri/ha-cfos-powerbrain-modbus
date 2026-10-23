@@ -7,6 +7,8 @@
     },
     "error": {
       "cannot_connect": "Failed to connect: {error}",
+      "charging_manager_cannot_connect": "Failed to connect to the Charging Manager: {error}",
+      "charging_manager_not_found": "The Charging Manager's SunSpec server does not answer at this port and Modbus ID. Switch it on under \"SunSpec address settings\" in the Charging Manager configuration.",
       "not_cfos": "The device answered, but it is not a cFos Power Brain Wallbox or Controller.",
       "unknown": "Unexpected error, see the log."
     },
@@ -26,12 +28,18 @@
       },
       "user": {
         "data": {
+          "charging_manager": "Charging Manager",
+          "charging_manager_port": "Charging Manager port",
+          "charging_manager_unit_id": "Charging Manager Modbus ID",
           "host": "Host",
           "port": "Port",
           "scan_interval": "Polling interval",
           "unit_id": "Modbus slave ID"
         },
         "data_description": {
+          "charging_manager": "Adds the built-in cFos Charging Manager as its own device, read and controlled through its SunSpec Modbus server. Switch the server on first under \"SunSpec address settings\" in the Charging Manager configuration. You can also switch it on later in the options.",
+          "charging_manager_port": "TCP port set under \"SunSpec address settings\" (502 on the cFos Power Brain Wallbox).",
+          "charging_manager_unit_id": "Modbus ID set under \"SunSpec address settings\".",
           "host": "IP address or host name of the wallbox.",
           "port": "Modbus TCP port of the charging station (4701 by default).",
           "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering.",
@@ -258,7 +266,8 @@
   "options": {
     "error": {
       "charging_manager_cannot_connect": "Failed to connect to the Charging Manager: {error}",
-      "charging_manager_not_found": "The Charging Manager's SunSpec server does not answer at this port and Modbus ID. Switch it on under \"SunSpec address settings\" in the Charging Manager configuration."
+      "charging_manager_not_found": "The Charging Manager's SunSpec server does not answer at this port and Modbus ID. Switch it on under \"SunSpec address settings\" in the Charging Manager configuration.",
+      "unknown": "Unexpected error, see the log."
     },
     "step": {
       "init": {

@@ -41,7 +41,13 @@ async def test_user_flow(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "cFos Power Brain Wallbox"
     assert result["data"] == ENTRY_DATA
-    assert result["options"] == {CONF_SCAN_INTERVAL: 5}
+    assert result["options"] == {
+        CONF_SCAN_INTERVAL: 5,
+        # The Charging Manager stays off unless switched on.
+        CONF_CHARGING_MANAGER: False,
+        CONF_CHARGING_MANAGER_PORT: 502,
+        CONF_CHARGING_MANAGER_UNIT_ID: 1,
+    }
     assert result["result"].unique_id == SERIAL
 
 
@@ -55,7 +61,7 @@ async def test_user_flow_default_scan_interval(
         result["flow_id"], ENTRY_DATA
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["options"] == {CONF_SCAN_INTERVAL: 10}
+    assert result["options"][CONF_SCAN_INTERVAL] == 10
 
 
 @pytest.mark.parametrize("seconds", [0, 31])

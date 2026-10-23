@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
+from unittest.mock import patch
 
 from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusConnectionError
@@ -20,7 +21,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
 from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 
 from homeassistant.components.number import ATTR_VALUE, SERVICE_SET_VALUE
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_SCAN_INTERVAL,
@@ -42,6 +43,7 @@ from custom_components.cfos_powerbrain.const import (
     CONF_S0_METERS,
     DOMAIN,
 )
+from tests.integration.conftest import ENTRY_DATA
 from tests.registers import CM_SERIAL, SERIAL, charging_manager, float_words
 
 MANAGER_OPTIONS = {
@@ -112,26 +114,96 @@ async def test_enable_in_options(
     )
 
 
-def _wrong_modbus_id(options: dict[str, Any], unit: MockModbusUnit) -> None:
+async def test_enable_during_setup(
+    hass: HomeAssistant,
+    mock_modbus: dict[int, MockModbusConnection],
+    device_registry: dr.DeviceRegistry,
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**ENTRY_DATA, **MANAGER_OPTIONS}
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == ENTRY_DATA
+    assert result["options"] == {CONF_SCAN_INTERVAL: 10, **MANAGER_OPTIONS}
+
+    entry = result["result"]
+    assert entry.runtime_data.charging_manager is not None
+    assert device_registry.async_get_device_by_identifier(
+        (DOMAIN, f"{SERIAL}_charging_manager"), entry.entry_id
+    )
+    assert (
+        float(hass.states.get("sensor.cfos_charging_manager_grid_power").state) == 2500
+    )
+
+
+def _wrong_modbus_id(
+    options: dict[str, Any], unit: MockModbusUnit
+) -> Callable[[], None]:
     options[CONF_CHARGING_MANAGER_UNIT_ID] = 9  # nothing answers there
+    return lambda: None  # the retry sends the right Modbus ID
 
 
-def _refused(options: dict[str, Any], unit: MockModbusUnit) -> None:
+def _refused(options: dict[str, Any], unit: MockModbusUnit) -> Callable[[], None]:
     unit.fail_requests(ModbusConnectionError("refused"))
+    return lambda: unit.fail_requests(None)
 
 
-@pytest.mark.parametrize(
+def _unexpected(options: dict[str, Any], unit: MockModbusUnit) -> Callable[[], None]:
+    failing = patch(
+        "custom_components.cfos_powerbrain.config_flow.CfosChargingManager.async_ensure_setup",
+        side_effect=RuntimeError("boom"),
+    )
+    failing.start()
+    return failing.stop
+
+
+PROBE_ERRORS = pytest.mark.parametrize(
     ("cause", "error"),
     [
         (_wrong_modbus_id, "charging_manager_not_found"),
         (_refused, "charging_manager_cannot_connect"),
+        (_unexpected, "unknown"),
     ],
 )
+
+
+@PROBE_ERRORS
+async def test_enable_during_setup_recovers_from_error(
+    hass: HomeAssistant,
+    mock_modbus: dict[int, MockModbusConnection],
+    manager_unit: MockModbusUnit,
+    cause: Callable[[dict[str, Any], MockModbusUnit], Callable[[], None]],
+    error: str,
+) -> None:
+    user_input: dict[str, Any] = {**ENTRY_DATA, **MANAGER_OPTIONS}
+    broken = dict(user_input)
+    undo = cause(broken, manager_unit)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], broken)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": error}
+
+    undo()
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["result"].runtime_data.charging_manager is not None
+
+
+@PROBE_ERRORS
 async def test_enable_in_options_recovers_from_error(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
     manager_unit: MockModbusUnit,
-    cause: Callable[[dict[str, Any], MockModbusUnit], None],
+    cause: Callable[[dict[str, Any], MockModbusUnit], Callable[[], None]],
     error: str,
 ) -> None:
     options: dict[str, Any] = {
@@ -140,7 +212,7 @@ async def test_enable_in_options_recovers_from_error(
         **MANAGER_OPTIONS,
     }
     broken = dict(options)
-    cause(broken, manager_unit)
+    undo = cause(broken, manager_unit)
     result = await hass.config_entries.options.async_init(init_integration.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], broken
@@ -148,7 +220,7 @@ async def test_enable_in_options_recovers_from_error(
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": error}
 
-    manager_unit.fail_requests(None)
+    undo()
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], options
     )

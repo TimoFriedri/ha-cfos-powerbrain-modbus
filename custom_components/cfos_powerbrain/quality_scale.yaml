@@ -16,10 +16,10 @@ rules:
     comment: coordinator.py and entity.py; the device library is the vendored cfos_modbus package.
   config-flow:
     status: done
-    comment: The charging point's connection is data (changed by reconfigure). The polling interval and the optional devices are options, because they are switched on and off after setup; that includes the Charging Manager's port and Modbus ID, which only matter while it is switched on. Every field has a data_description.
+    comment: The charging point's connection is data (changed by reconfigure). The polling interval and the optional devices are options, because they are switched on and off after setup; that includes the Charging Manager's port and Modbus ID, which only matter while it is switched on. The setup form asks for the polling interval and the Charging Manager too and stores them as options. Every field has a data_description.
   config-flow-test-coverage:
     status: done
-    comment: 100 % of config_flow.py, including reconfigure and options; every error is followed by a successful retry.
+    comment: 100 % of config_flow.py, including reconfigure, options and the Charging Manager probe in both; every error is followed by a successful retry.
   dependency-transparency:
     status: exempt
     comment: No requirements of its own. modbus-connection comes with the modbus integration; the device library is vendored in this repository.
