@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.const import EntityCategory
@@ -108,16 +108,19 @@ class CfosSwitch[DeviceT: CfosDevice](CfosEntity[DeviceT], SwitchEntity):
     entity_description: CfosSwitchEntityDescription
 
     @property
+    @override
     def is_on(self) -> bool | None:
         """The state from the most recent poll."""
         value = getattr(self._component, self.entity_description.field, None)
         # Some devices keep the flag in a float register: 1.0 or 0.0.
         return None if value is None else bool(value)
 
+    @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Switch the value on."""
         await self._async_set(True)
 
+    @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Switch the value off."""
         await self._async_set(False)
@@ -152,6 +155,7 @@ class CfosFlagSwitch(CfosSwitch[CfosChargingManager]):
         self._index = number - 1
 
     @property
+    @override
     def _component(self) -> CmFlag | None:
         """The flag itself, within the flags model."""
         flags = self.device.flags

@@ -12,7 +12,7 @@ discovered by scanning the model chain.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final
+from typing import TYPE_CHECKING, Final, override
 
 from modbus_connection.model import Component, FloatField, float32 as scaled_float32
 from modbus_connection.model.sunspec import (
@@ -253,16 +253,19 @@ class CfosChargingManager(CfosDevice):
         self.variables: CmVariables | CmVariablesLongName | None = None
 
     @property
+    @override
     def serial_number(self) -> str | None:
         """Serial number the Charging Manager reports."""
         return self.common.serial_number if self.common else None
 
     @property
+    @override
     def firmware_version(self) -> str | None:
         """Version the Charging Manager reports."""
         return self.common.version if self.common else None
 
     @property
+    @override
     def private_registers(self) -> range:
         """The registers of the serial number, for redacting a raw dump."""
         if self.common is None:
@@ -270,6 +273,7 @@ class CfosChargingManager(CfosDevice):
         start = self.common.resolved_fields["serial_number"].address
         return range(start, start + 16)
 
+    @override
     async def _async_setup(self) -> None:
         """Discover the models and place a component on each one in use."""
         unit = self.modbus_unit

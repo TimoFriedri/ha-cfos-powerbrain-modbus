@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from modbus_connection.model import Device, Raw, UpdateReport, read_optional
 
@@ -58,6 +58,7 @@ class CfosDevice(Device):
         report = await self.async_poll(self.READINGS)
         return await self.async_poll(self.SETTINGS, report)
 
+    @override
     async def async_read_raw(self, names: Iterable[str] | None = None) -> Raw:
         """Every register this device reads, undecoded, for diagnostics."""
         if names is None:
@@ -75,20 +76,24 @@ class PowerBrainUnit(CfosDevice):
         self.identity = Identity(unit)
 
     @property
+    @override
     def serial_number(self) -> str | None:
         """Serial number of the controller."""
         return self.identity.serial_number
 
     @property
+    @override
     def firmware_version(self) -> str | None:
         """Product version of the controller."""
         return self.identity.firmware_version
 
     @property
+    @override
     def private_registers(self) -> Iterable[int]:
         """The serial number and the last RFID tag."""
         return (*range(8008, 8016), *range(8096, 8111))
 
+    @override
     async def _async_setup(self) -> None:
         """Read the identity and refuse a device that is not a cFos one."""
         await self.identity.async_update()
@@ -113,6 +118,7 @@ class CfosWallbox(PowerBrainUnit):
         self.meter: EvseMeter | None = None
         self.health: EvseHealth | None = None
 
+    @override
     async def _async_setup(self) -> None:
         """Identify the wallbox and settle which optional blocks it serves."""
         await super()._async_setup()

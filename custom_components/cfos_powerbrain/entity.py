@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 from modbus_connection import ModbusError
 
@@ -57,6 +57,7 @@ class CfosEntity[DeviceT: CfosDevice](CoordinatorEntity[CfosCoordinator]):
         return getattr(self.device, self.entity_description.component)
 
     @property
+    @override
     def available(self) -> bool:
         """Whether this entity's component answered the most recent poll."""
         if not super().available or self.coordinator.data is None:

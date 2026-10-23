@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import override
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.core import HomeAssistant
@@ -46,11 +47,13 @@ class CfosPhaseModeSelect(CfosEntity[CfosWallbox], SelectEntity):
     entity_description: CfosSelectEntityDescription
 
     @property
+    @override
     def current_option(self) -> str | None:
         """The contactor in use."""
         relay = self.device.status.phase_relay
         return None if relay is None else relay.name.lower()
 
+    @override
     async def async_select_option(self, option: str) -> None:
         """Switch the contactor."""
         await self._async_write(

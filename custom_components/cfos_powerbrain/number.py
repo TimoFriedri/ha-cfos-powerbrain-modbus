@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 from homeassistant.components.number import (
     NumberDeviceClass,
@@ -208,6 +208,7 @@ class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
     entity_description: CfosNumberEntityDescription
 
     @property
+    @override
     def native_value(self) -> float | None:
         """The value from the most recent poll."""
         value: float | None = getattr(
@@ -215,6 +216,7 @@ class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
         )
         return value
 
+    @override
     async def async_set_native_value(self, value: float) -> None:
         """Write the value to the device."""
         description = self.entity_description

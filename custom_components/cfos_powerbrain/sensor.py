@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from operator import attrgetter
-from typing import Any, Self
+from typing import Any, Self, override
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -353,6 +353,7 @@ class CfosSensor[DeviceT: CfosDevice](CfosEntity[DeviceT], SensorEntity):
     entity_description: CfosSensorEntityDescription[Any]
 
     @property
+    @override
     def native_value(self) -> StateType | date | datetime | Decimal:
         """The value from the most recent poll."""
         return self._polled_value()
@@ -369,11 +370,13 @@ class CfosDerivedSensor[DeviceT: CfosDevice](CfosSensor[DeviceT]):
     """A sensor whose value is worked out from successive polls."""
 
     @property
+    @override
     def native_value(self) -> StateType | date | datetime | Decimal:
         """The value worked out so far."""
         return self._attr_native_value
 
     @callback
+    @override
     def _handle_coordinator_update(self) -> None:
         """Take the new value."""
         self._process_data()
@@ -391,11 +394,13 @@ class CfosTotalSensor[DeviceT: CfosDevice](CfosDerivedSensor[DeviceT]):
     sensor that goes down makes Home Assistant warn about it.
     """
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Take the total from the poll made during setup."""
         await super().async_added_to_hass()
         self._process_data()
 
+    @override
     def _process_data(self) -> None:
         """Keep the new value unless it is a glitch just below the last one."""
         value = self._polled_value()
@@ -415,6 +420,7 @@ class SessionExtraStoredData(ExtraStoredData):
     start_energy: int | None
     vehicle_connected: bool
 
+    @override
     def as_dict(self) -> dict[str, Any]:
         """The data as a dict, for the restore state store."""
         return asdict(self)
@@ -443,6 +449,7 @@ class CfosSessionEnergySensor(CfosDerivedSensor[CfosWallbox], RestoreEntity):
     _vehicle_connected = False
 
     @property
+    @override
     def extra_restore_state_data(self) -> SessionExtraStoredData:
         """Remember where the session started."""
         value = self._attr_native_value
@@ -452,6 +459,7 @@ class CfosSessionEnergySensor(CfosDerivedSensor[CfosWallbox], RestoreEntity):
             self._vehicle_connected,
         )
 
+    @override
     async def async_added_to_hass(self) -> None:
         """Pick up the session where it was before the restart."""
         await super().async_added_to_hass()
@@ -463,6 +471,7 @@ class CfosSessionEnergySensor(CfosDerivedSensor[CfosWallbox], RestoreEntity):
             self._vehicle_connected = data.vehicle_connected
         self._process_data()
 
+    @override
     def _process_data(self) -> None:
         """Start a session on plug-in, and count energy while it lasts."""
         meter = self.device.meter

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, override
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.const import EntityCategory
@@ -79,6 +79,7 @@ class CfosButton[DeviceT: CfosDevice](CfosEntity[DeviceT], ButtonEntity):
 
     entity_description: CfosButtonEntityDescription[DeviceT]
 
+    @override
     async def async_press(self) -> None:
         """Run the action."""
         await self._async_write(self.entity_description.press_fn(self.device))

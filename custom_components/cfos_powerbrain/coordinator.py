@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
 import logging
+from typing import override
 
 from modbus_connection import ModbusError
 from modbus_connection.model import UpdateReport
@@ -62,6 +63,7 @@ class CfosCoordinator(DataUpdateCoordinator[UpdateReport]):
         self._optional = optional
         self._failing: set[str] = set()
 
+    @override
     async def _async_update_data(self) -> UpdateReport:
         """Poll the device and report which components refreshed."""
         try:

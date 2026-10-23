@@ -64,6 +64,17 @@ homeassistant = ["homeassistant"]
 python_version = "3.14"
 files = ["custom_components/cfos_powerbrain"]
 strict = true
+# What Home Assistant core checks on top for its strictly typed integrations.
+warn_unreachable = true
+strict_bytes = true
+local_partial_types = true
+enable_error_code = [
+    "deprecated",
+    "explicit-override",
+    "ignore-without-code",
+    "redundant-self",
+    "truthy-iterable",
+]
 
 [[tool.mypy.overrides]]
 # Home Assistant re-exports names from component packages without __all__.

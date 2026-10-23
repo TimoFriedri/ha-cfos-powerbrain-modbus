@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import override
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -80,6 +81,7 @@ class CfosBinarySensor(CfosEntity[CfosWallbox], BinarySensorEntity):
     entity_description: CfosBinarySensorEntityDescription
 
     @property
+    @override
     def is_on(self) -> bool | None:
         """The state from the most recent poll."""
         return self.entity_description.value_fn(self.device.status)
