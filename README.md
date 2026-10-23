@@ -1,5 +1,10 @@
 <img src="https://raw.githubusercontent.com/TimoFriedri/ha-cfos-powerbrain-modbus/main/custom_components/cfos_powerbrain/brand/logo.png" alt="cFos eMobility" height="80">
 
+> [!IMPORTANT]
+> This is an independent, third-party community integration. It is not
+> developed, endorsed or supported by cFos Software GmbH. For problems with
+> it, open an [issue][issues] here, not with cFos support.
+
 # cFos Power Brain (Modbus) for Home Assistant
 
 [![HACS Custom][hacs-badge]][hacs]
