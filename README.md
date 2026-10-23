@@ -89,6 +89,7 @@ then enter:
 | Host | | IP address or host name of the wallbox |
 | Port | 4701 | Modbus TCP port of the charging station |
 | Modbus slave ID | 1 | Slave ID of the charging station |
+| Polling interval | 10 s | Seconds between reads of the live values, 1–30 |
 
 The integration identifies the device by its vendor ID and serial number
 before it creates the entry. **Reconfigure** changes the address later, for
@@ -96,8 +97,8 @@ example after the wallbox got a new IP address.
 
 **Options** (the gear on the integration entry):
 
-- **Polling interval**: seconds between reads of the live values (default 10,
-  2–120). Settings are read every 5 minutes.
+- **Polling interval**: change the interval set during setup (1–30 s).
+  Settings such as the fail-safe are read every 5 minutes regardless.
 - **S0 meters**: adds S0 meter 1 and/or 2 as devices.
 
 It can run side by side with the HTTP-API-based

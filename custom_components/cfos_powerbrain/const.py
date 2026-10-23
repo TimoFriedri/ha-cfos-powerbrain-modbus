@@ -15,8 +15,8 @@ CONF_S0_METERS: Final = "s0_meters"
 DEFAULT_SCAN_INTERVAL: Final = 10
 """Seconds between two reads of the live values."""
 
-MIN_SCAN_INTERVAL: Final = 2
-MAX_SCAN_INTERVAL: Final = 120
+MIN_SCAN_INTERVAL: Final = 1
+MAX_SCAN_INTERVAL: Final = 30
 """Stays well below the wallbox's default 300 s Modbus fail-safe timeout."""
 
 SETTINGS_SCAN_INTERVAL: Final = timedelta(minutes=5)

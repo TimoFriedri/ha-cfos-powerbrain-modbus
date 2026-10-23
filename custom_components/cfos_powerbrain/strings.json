@@ -28,12 +28,14 @@
         "data": {
           "host": "Host",
           "port": "Port",
-          "unit_id": "Modbus slave ID"
+          "unit_id": "Modbus slave ID",
+          "scan_interval": "Polling interval"
         },
         "data_description": {
           "host": "IP address or host name of the wallbox.",
           "port": "Modbus TCP port of the charging station (4701 by default).",
-          "unit_id": "Modbus slave ID of the charging station (1 by default)."
+          "unit_id": "Modbus slave ID of the charging station (1 by default).",
+          "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering."
         },
         "description": "Connect to a cFos Power Brain wallbox over Modbus TCP. If the built-in Charging Manager controls this wallbox, values written from Home Assistant can be overwritten by it; see the documentation."
       }
@@ -184,7 +186,7 @@
         },
         "data_description": {
           "s0_meters": "S0 meter inputs of the controller to add as devices. They are reached on the same host at TCP port 4702 (slave ID 2) and 4703 (slave ID 3).",
-          "scan_interval": "Seconds between two reads of the live values. Reads keep the wallbox's Modbus fail-safe from triggering."
+          "scan_interval": "Seconds between two reads of the live values (1–30). Every read also keeps the wallbox's Modbus fail-safe from triggering."
         }
       }
     }

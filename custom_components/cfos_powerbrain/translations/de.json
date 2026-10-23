@@ -28,12 +28,14 @@
         "data": {
           "host": "Host",
           "port": "Port",
-          "unit_id": "Modbus-Slave-ID"
+          "unit_id": "Modbus-Slave-ID",
+          "scan_interval": "Abfrageintervall"
         },
         "data_description": {
           "host": "IP-Adresse oder Hostname der Wallbox.",
           "port": "Modbus-TCP-Port der Ladestation (Standard 4701).",
-          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1)."
+          "unit_id": "Modbus-Slave-ID der Ladestation (Standard 1).",
+          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst."
         },
         "description": "Eine cFos Power Brain Wallbox über Modbus TCP verbinden. Steuert der eingebaute Lademanager diese Wallbox, kann er von Home Assistant geschriebene Werte überschreiben; siehe Dokumentation."
       }
@@ -184,7 +186,7 @@
         },
         "data_description": {
           "s0_meters": "S0-Zählereingänge des Controllers, die als Geräte angelegt werden. Sie werden über denselben Host auf TCP-Port 4702 (Slave-ID 2) und 4703 (Slave-ID 3) erreicht.",
-          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte. Die Abfragen verhindern, dass der Modbus-Fail-Safe der Wallbox auslöst."
+          "scan_interval": "Sekunden zwischen zwei Abfragen der Live-Werte (1–30). Jede Abfrage verhindert zugleich, dass der Modbus-Fail-Safe der Wallbox auslöst."
         }
       }
     }

@@ -46,7 +46,7 @@ from .coordinator import CfosConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = probatio.Schema(
+CONNECTION_SCHEMA = probatio.Schema(
     {
         probatio.Required(CONF_HOST): TextSelector(),
         probatio.Required(CONF_PORT, default=DEFAULT_EVSE_PORT): probatio.All(
@@ -63,6 +63,23 @@ STEP_USER_DATA_SCHEMA = probatio.Schema(
         ),
     }
 )
+
+SCAN_INTERVAL_SCHEMA = {
+    probatio.Required(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL): probatio.All(
+        NumberSelector(
+            NumberSelectorConfig(
+                mode=NumberSelectorMode.SLIDER,
+                min=MIN_SCAN_INTERVAL,
+                max=MAX_SCAN_INTERVAL,
+                step=1,
+                unit_of_measurement="s",
+            )
+        ),
+        probatio.Coerce(int),
+    ),
+}
+
+STEP_USER_DATA_SCHEMA = CONNECTION_SCHEMA.extend(SCAN_INTERVAL_SCHEMA)
 
 
 async def _async_probe(hass: HomeAssistant, data: dict[str, Any]) -> str:
@@ -91,15 +108,24 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Ask where the wallbox is, then identify it."""
+        """Ask where the wallbox is and how often to poll it, then identify it."""
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
         if user_input is not None:
-            serial = await self._async_validate(user_input, errors, placeholders)
+            # How to reach the wallbox is data; the interval stays an option.
+            options = {CONF_SCAN_INTERVAL: user_input[CONF_SCAN_INTERVAL]}
+            data = {
+                key: value
+                for key, value in user_input.items()
+                if key != CONF_SCAN_INTERVAL
+            }
+            serial = await self._async_validate(data, errors, placeholders)
             if serial is not None:
                 await self.async_set_unique_id(serial)
-                self._abort_if_unique_id_configured(updates=user_input)
-                return self.async_create_entry(title=DEFAULT_NAME, data=user_input)
+                self._abort_if_unique_id_configured(updates=data)
+                return self.async_create_entry(
+                    title=DEFAULT_NAME, data=data, options=options
+                )
 
         return self.async_show_form(
             step_id="user",
@@ -127,7 +153,7 @@ class CfosPowerBrainConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=self.add_suggested_values_to_schema(
-                STEP_USER_DATA_SCHEMA, user_input or entry.data
+                CONNECTION_SCHEMA, user_input or entry.data
             ),
             errors=errors,
             description_placeholders=placeholders,
@@ -165,19 +191,7 @@ class CfosOptionsFlow(OptionsFlowWithReload):
 
         schema = probatio.Schema(
             {
-                probatio.Required(
-                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-                ): probatio.All(
-                    NumberSelector(
-                        NumberSelectorConfig(
-                            mode=NumberSelectorMode.BOX,
-                            min=MIN_SCAN_INTERVAL,
-                            max=MAX_SCAN_INTERVAL,
-                            unit_of_measurement="s",
-                        )
-                    ),
-                    probatio.Coerce(int),
-                ),
+                **SCAN_INTERVAL_SCHEMA,
                 probatio.Required(CONF_S0_METERS, default=[]): SelectSelector(
                     SelectSelectorConfig(
                         options=[str(number) for number in S0_METER_PORTS],
