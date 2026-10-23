@@ -538,7 +538,8 @@ pytest
 
 The tests run the device library against `modbus-connection`'s in-memory mock,
 and run the integration against Home Assistant with only the Modbus transport
-mocked.
+mocked. [AGENTS.md](AGENTS.md) has the conventions for changes: code style,
+commit messages and the quality scale target.
 
 ## Disclaimer
 
