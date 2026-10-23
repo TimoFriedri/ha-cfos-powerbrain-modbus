@@ -1,5 +1,25 @@
 # Development tooling only. The integration ships through HACS from
-# custom_components/cfos_powerbrain; this file is not a package definition.
+# custom_components/cfos_powerbrain; this project is never built or installed.
+
+[project]
+name = "ha-cfos-powerbrain-modbus"
+version = "0"  # never released; the integration's version is in manifest.json
+requires-python = ">=3.14.2"
+
+[dependency-groups]
+dev = [
+    # Pins Home Assistant 2026.10.2 and its test harness.
+    "pytest-homeassistant-custom-component==0.13.373",
+    # What Home Assistant 2026.10.2's modbus integration installs at runtime.
+    "modbus-connection[tmodbus]==4.12.4",
+    "pymodbus==3.13.1",
+    "tmodbus==0.6.2",
+    "ruff==0.17.2",
+    "mypy==2.4.0",
+]
+
+[tool.uv]
+package = false
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

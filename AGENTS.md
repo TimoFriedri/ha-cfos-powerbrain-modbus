@@ -32,15 +32,19 @@ over **Modbus TCP only**. The HTTP API is out of scope.
 
 ## Set up and check
 
+The development setup uses [uv](https://docs.astral.sh/uv/). The `dev`
+dependency group in `pyproject.toml` pins the Home Assistant version tested
+against; `uv.lock` pins everything else.
+
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements_test.txt   # pins the Home Assistant version tested against
-ruff check . && ruff format --check .
-mypy
-pytest
+uv sync
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pytest
 ```
 
-All four must pass before a commit. CI (`.github/workflows/`) runs them,
+All four must pass before a commit. Change a pin in `pyproject.toml`, then
+run `uv lock` and commit both files. CI (`.github/workflows/`) runs them,
 the library tests on the oldest and newest supported `modbus-connection`,
 hassfest and the HACS validation.
 

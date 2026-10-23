@@ -460,9 +460,10 @@ counterpart:
    redacted. For the Charging Manager it also lists the SunSpec models found
    and their addresses.
 2. Or, without Home Assistant, run
-   `python script/dump_registers.py <host> --raw`, adding
-   `--charging-manager` to include the Charging Manager (needs
-   `pip install "modbus-connection[tmodbus]>=4.12.3"`).
+   `uv run script/dump_registers.py <host> --raw`, adding
+   `--charging-manager` to include the Charging Manager. Without
+   [uv][uv], `pip install "modbus-connection[tmodbus]>=4.12.3"` first and
+   use `python` instead of `uv run`.
 3. Open an [issue][issues] with the file and what you expected to see.
 
 The firmware version decoding (`product_version` / `product_build`, registers
@@ -491,11 +492,12 @@ integration has two layers:
 
 ### Development
 
+With [uv][uv] installed:
+
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements_test.txt
-ruff check . && ruff format --check . && mypy
-pytest
+uv sync   # creates .venv with the versions pinned in uv.lock
+uv run ruff check . && uv run ruff format --check . && uv run mypy
+uv run pytest
 ```
 
 The tests run the device library against `modbus-connection`'s in-memory mock,
@@ -523,3 +525,4 @@ wallbox controls real hardware; use at your own risk.
 [cfos-registers]: https://www.cfos-emobility.de/en/cfos-power-brain/modbus-registers.htm
 [cfos-docs]: https://www.cfos-emobility.de/en/cfos-charging-manager/documentation/power-brain-configuration.htm
 [rest-integration]: https://github.com/guibrazlima/homeassistant-powerbrain
+[uv]: https://docs.astral.sh/uv/

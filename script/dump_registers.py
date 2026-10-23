@@ -1,11 +1,18 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["modbus-connection[tmodbus]>=4.12.3"]
+# ///
 """Read a cFos Power Brain Wallbox over Modbus TCP and print what the integration sees.
 
-Needs only Python 3.12+ and modbus-connection, no Home Assistant:
+Needs only Python 3.12+ and modbus-connection, no Home Assistant. uv installs
+them from the header above:
 
-    pip install "modbus-connection[tmodbus]>=4.12.3"
-    python script/dump_registers.py 192.168.1.50
-    python script/dump_registers.py 192.168.1.50 --s0 1 --raw
-    python script/dump_registers.py 192.168.1.50 --charging-manager --raw
+    uv run script/dump_registers.py 192.168.1.50
+    uv run script/dump_registers.py 192.168.1.50 --s0 1 --raw
+    uv run script/dump_registers.py 192.168.1.50 --charging-manager --raw
+
+Without uv, run ``pip install "modbus-connection[tmodbus]>=4.12.3"`` first and
+start the script with ``python`` instead of ``uv run``.
 
 The cFos Charging Manager is read through its SunSpec server, which has to be
 switched on under "SunSpec address settings" in its configuration.
