@@ -12,6 +12,8 @@ Monitor and control a **cFos Power Brain Wallbox**, or a wallbox built around
 the **cFos Power Brain Controller**, from Home Assistant over **Modbus TCP**,
 using the [Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
 
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?category=custom+integration&owner=TimoFriedri&repository=https%3A%2F%2Fgithub.com%2FTimoFriedri%2Fha-cfos-powerbrain-modbus)
+
 [cFos Software GmbH](https://www.cfos-emobility.de) makes the cFos Power
 Brain Wallbox and the cFos Power Brain Controller, which other wallbox makers
 build in. Both have the **cFos Charging Manager** built in, which does load
