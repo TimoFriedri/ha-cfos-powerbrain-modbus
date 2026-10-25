@@ -32,9 +32,10 @@ over **Modbus TCP only**. The HTTP API is out of scope.
 
 ## Set up and check
 
-The development setup uses [uv](https://docs.astral.sh/uv/). The `dev`
-dependency group in `pyproject.toml` pins the Home Assistant version tested
-against; `uv.lock` pins everything else.
+The development setup uses [uv](https://docs.astral.sh/uv/), in the version
+`required-version` in `pyproject.toml` names; CI installs the same one. The
+`dev` dependency group pins the Home Assistant version tested against;
+`uv.lock` pins everything else.
 
 ```bash
 uv sync
