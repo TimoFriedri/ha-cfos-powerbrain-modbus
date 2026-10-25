@@ -15,8 +15,68 @@ on:
 permissions: {}
 
 jobs:
+  changes:
+    # Which checks the change needs. Jobs skip rather than the workflow, so
+    # "CI passed" reports on every pull request. Scheduled and manual runs
+    # run everything.
+    name: Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read # a pull request's files come from the API
+    outputs:
+      lint: ${{ steps.filter.outputs.lint || 'true' }}
+      tests: ${{ steps.filter.outputs.tests || 'true' }}
+      library: ${{ steps.filter.outputs.library || 'true' }}
+      integration: ${{ steps.filter.outputs.integration || 'true' }}
+    steps:
+      - name: Check out the repository
+        # A push is compared with the commit before it, using git.
+        if: github.event_name == 'push'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Find the checks the changed files need
+        id: filter
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            workflow: &workflow
+              - .github/workflows/ci.yml
+            dependencies: &dependencies
+              - pyproject.toml
+              - uv.lock
+            lint:
+              - *workflow
+              - *dependencies
+              - "**/*.py"
+              - custom_components/cfos_powerbrain/strings.json
+              - custom_components/cfos_powerbrain/translations/**
+            tests:
+              - *workflow
+              - *dependencies
+              - custom_components/**
+              - tests/**
+              - script/check_coverage.py
+            library:
+              - *workflow
+              - pyproject.toml
+              - custom_components/cfos_powerbrain/cfos_modbus/**
+              - tests/lib/**
+              - tests/registers.py
+            integration:
+              - *workflow
+              - *dependencies
+              - custom_components/**
+              - hacs.json
+              - script/check_quality_scale.py
+              - script/check_version.py
+
   lint:
     name: Lint and type-check
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -49,6 +109,8 @@ jobs:
 
   test:
     name: Integration tests
+    needs: changes
+    if: needs.changes.outputs.tests == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -74,6 +136,8 @@ jobs:
   library:
     # The oldest modbus-connection a supported Home Assistant ships, and the newest.
     name: Device library on modbus-connection ${{ matrix.modbus-connection }}
+    needs: changes
+    if: needs.changes.outputs.library == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -98,6 +162,8 @@ jobs:
 
   quality-scale:
     name: Quality scale
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -136,6 +202,8 @@ jobs:
 
   version:
     name: Version
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -150,6 +218,8 @@ jobs:
 
   hassfest: # https://developers.home-assistant.io/blog/2020/04/16/hassfest
     name: Hassfest
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -162,6 +232,8 @@ jobs:
 
   hacs: # https://github.com/hacs/action
     name: HACS
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Run HACS validation
@@ -170,15 +242,15 @@ jobs:
           category: integration
 
   passed:
-    # The one check branch protection needs to require.
+    # The one check branch protection needs to require. A skipped job had
+    # nothing to check, as none of its files changed.
     name: CI passed
     if: always()
-    needs: [lint, test, library, quality-scale, version, hassfest, hacs]
+    needs: [changes, lint, test, library, quality-scale, version, hassfest, hacs]
     runs-on: ubuntu-latest
     steps:
-      - name: Fail unless every job succeeded
+      - name: Fail if a job failed or was cancelled
         if: >
           contains(needs.*.result, 'failure') ||
-          contains(needs.*.result, 'cancelled') ||
-          contains(needs.*.result, 'skipped')
+          contains(needs.*.result, 'cancelled')
         run: exit 1

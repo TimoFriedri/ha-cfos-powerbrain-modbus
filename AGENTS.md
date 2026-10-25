@@ -64,6 +64,12 @@ once two checks are green:
 | Version | `script/check_version.py`: see releases below |
 | Hassfest, HACS | Home Assistant's and HACS' validation |
 
+Each job runs only when files it checks change; the `changes` job at the top
+of `ci.yml` decides. A pull request that touches only Markdown runs none of
+them, and **CI passed** still reports. A change to `ci.yml` itself, and
+scheduled and manual runs, run every job. When a job starts to depend on
+another file, add that file to the job's filter.
+
 To run the coverage and quality scale checks locally:
 
 ```bash
