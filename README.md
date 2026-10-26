@@ -26,11 +26,6 @@ connection to the wallbox (`modbus.async_get_unit`), so it coexists with any
 other integration talking to the same device. You set it up in the UI and
 write no YAML.
 
-> **Status:** the charging point runs on a real cFos Power Brain Wallbox.
-> The cFos Charging Manager device is tested against a simulated SunSpec
-> server built from the cFos documentation, not yet on hardware. Please
-> report what your wallbox shows; see [Reporting problems](#reporting-problems).
-
 ## Features
 
 **Wallbox** (Modbus slave ID 1, TCP port 4701), following cFos'
@@ -466,13 +461,6 @@ counterpart:
    [uv][uv], `pip install "modbus-connection[tmodbus]>=4.12.3"` first and
    use `python` instead of `uv run`.
 3. Open an [issue][issues] with the file and what you expected to see.
-
-The firmware version decoding (`product_version` / `product_build`, registers
-8004–8005) is the part most likely to need adjusting; the register
-documentation is ambiguous there. The same goes for the Charging Manager
-variables (model 60002): the cFos documentation gives two layouts, and the
-integration picks the one that matches the names it reads. If variable names
-look wrong, please include the diagnostics.
 
 ## How it is built
 
