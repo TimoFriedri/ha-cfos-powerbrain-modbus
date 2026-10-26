@@ -45,6 +45,7 @@ jobs:
             workflow: &workflow
               - .github/workflows/ci.yml
             dependencies: &dependencies
+              - .python-version
               - pyproject.toml
               - uv.lock
             lint:
@@ -61,6 +62,7 @@ jobs:
               - script/check_coverage.py
             library:
               - *workflow
+              - .python-version
               - pyproject.toml
               - custom_components/cfos_powerbrain/cfos_modbus/**
               - tests/lib/**
@@ -153,9 +155,9 @@ jobs:
 
       - name: Pytest
         # Only the library tests: they need no Home Assistant, so the project's
-        # pinned environment is left out.
+        # pinned environment is left out. Python comes from .python-version.
         run: >
-          uv run --no-project --python 3.14
+          uv run --no-project
           --with "modbus-connection[tmodbus]${{ matrix.modbus-connection }}"
           --with pytest --with pytest-asyncio
           pytest tests/lib -p no:cacheprovider
