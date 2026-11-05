@@ -74,26 +74,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
     await settings.async_refresh()
 
     identity = wallbox.identity
+    wallbox_info = DeviceInfo(
+        identifiers={(DOMAIN, serial)},
+        manufacturer=MANUFACTURER,
+        model=identity.name or "cFos Power Brain Controller",
+        name=entry.title,
+        serial_number=serial,
+        sw_version=identity.firmware_version,
+        configuration_url=f"http://{host}",
+    )
     runtime_data = CfosRuntimeData(
         wallbox=CfosUnitData(
             device=wallbox,
             readings=readings,
             settings=settings,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, serial)},
-                manufacturer=MANUFACTURER,
-                model=identity.name or "cFos Power Brain Controller",
-                name=entry.title,
-                serial_number=serial,
-                sw_version=identity.firmware_version,
-                configuration_url=f"http://{host}",
-            ),
+            device_info=wallbox_info,
             unique_id_prefix=serial,
         )
     )
     # Registered up front: it is the parent of the S0 meters' child devices.
-    wallbox_device = dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id, **runtime_data.wallbox.device_info
+    wallbox_device = dr.async_get(hass).async_get_or_create_from_info(
+        config_entry_id=entry.entry_id, device_info=wallbox_info
     )
 
     for number in sorted(int(n) for n in entry.options.get(CONF_S0_METERS, [])):
