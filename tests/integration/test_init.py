@@ -189,15 +189,59 @@ async def test_s0_meters(
     wallbox = device_registry.async_get_device_by_identifier(
         (DOMAIN, SERIAL), config_entry.entry_id
     )
-    meter = device_registry.async_get_device_by_identifier(
+    meter = device_registry.async_get_child_device_by_identifier(
         (DOMAIN, f"{SERIAL}_s0_2"), config_entry.entry_id
     )
     assert wallbox is not None
     assert meter is not None
-    assert meter.via_device_id == wallbox.id
+    assert meter.parent_device_id == wallbox.id
 
+    prefix = "sensor.cfos_power_brain_wallbox_s0_meter"
+    assert hass.states.get(f"{prefix}_1_power").state == "3000"
+    assert hass.states.get(f"{prefix}_2_total_energy").state == "5000.0"
+
+
+async def test_s0_meter_of_0_5_becomes_a_child_device(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    mock_modbus: dict[int, MockModbusConnection],
+    device_registry: dr.DeviceRegistry,
+    entity_registry: er.EntityRegistry,
+) -> None:
+    """Up to 0.5, an S0 meter was a device of its own, linked via the wallbox."""
+    config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        config_entry, options={CONF_S0_METERS: ["1"]}
+    )
+    wallbox = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id, identifiers={(DOMAIN, SERIAL)}
+    )
+    old_meter = device_registry.async_get_or_create(
+        config_entry_id=config_entry.entry_id,
+        identifiers={(DOMAIN, f"{SERIAL}_s0_1")},
+        via_device_id=wallbox.id,
+    )
+    entity_registry.async_get_or_create(
+        "sensor",
+        DOMAIN,
+        f"{SERIAL}_s0_1_power",
+        suggested_object_id="s0_meter_1_power",
+        config_entry=config_entry,
+        device_id=old_meter.id,
+    )
+    # As after a restart: the devices are stored, not registered in this run.
+    device_registry.async_config_entry_unloaded(config_entry.entry_id)
+
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    meter = device_registry.async_get_child_device_by_identifier(
+        (DOMAIN, f"{SERIAL}_s0_1"), config_entry.entry_id
+    )
+    assert meter is not None
+    assert meter.id == old_meter.id  # device automations keep working
+    assert meter.parent_device_id == wallbox.id
     assert hass.states.get("sensor.s0_meter_1_power").state == "3000"
-    assert hass.states.get("sensor.s0_meter_2_total_energy").state == "5000.0"
 
 
 async def test_unanswering_s0_meter_does_not_block_setup(
@@ -214,7 +258,10 @@ async def test_unanswering_s0_meter_does_not_block_setup(
     await hass.async_block_till_done()
 
     assert config_entry.state is ConfigEntryState.LOADED
-    assert hass.states.get("sensor.s0_meter_1_power").state == STATE_UNAVAILABLE
+    assert (
+        hass.states.get("sensor.cfos_power_brain_wallbox_s0_meter_1_power").state
+        == STATE_UNAVAILABLE
+    )
     assert hass.states.get("sensor.cfos_power_brain_wallbox_power").state == "7360"
 
 

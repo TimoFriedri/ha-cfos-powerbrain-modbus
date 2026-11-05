@@ -10,7 +10,7 @@ from homeassistant.components.modbus import async_get_unit
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv, device_registry as dr
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.typing import ConfigType
 
 from .cfos_modbus import (
@@ -91,7 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
             unique_id_prefix=serial,
         )
     )
-    # Registered up front: the S0 meters name it as the device they sit on.
+    # Registered up front: it is the parent of the S0 meters' child devices.
     wallbox_device = dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id, **runtime_data.wallbox.device_info
     )
@@ -113,12 +113,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
             device=meter,
             readings=meter_readings,
             settings=meter_settings,
-            device_info=DeviceInfo(
+            # An input of the wallbox's controller, so a part of that device.
+            # An S0 device of an older version becomes a child in place.
+            device_info=ChildDeviceInfo(
                 identifiers={(DOMAIN, f"{serial}_s0_{number}")},
-                manufacturer=MANUFACTURER,
+                parent_device_id=wallbox_device.id,
                 translation_key="s0_meter",
                 translation_placeholders={"number": str(number)},
-                via_device_id=wallbox_device.id,
             ),
             unique_id_prefix=f"{serial}_s0_{number}",
         )
