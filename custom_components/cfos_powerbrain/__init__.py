@@ -57,7 +57,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None
     """Set up a cFos Power Brain Wallbox from a config entry."""
     serial = entry.unique_id
     assert serial is not None
-    host: str = entry.data[CONF_HOST]
     interval = timedelta(
         seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
@@ -81,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None
         name=entry.title,
         serial_number=serial,
         sw_version=identity.firmware_version,
-        configuration_url=f"http://{host}",
+        configuration_url=f"http://{entry.data[CONF_HOST]}",
     )
     runtime_data = CfosRuntimeData(
         wallbox=CfosUnitData(
@@ -98,33 +97,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None
     )
 
     for number in sorted(int(n) for n in entry.options.get(CONF_S0_METERS, [])):
-        meter = CfosS0Meter(
-            _async_get_unit(
-                hass, entry, S0_METER_PORTS[number], S0_METER_UNIT_IDS[number]
-            )
+        runtime_data.s0_meters[number] = await _async_setup_s0_meter(
+            hass, entry, serial, interval, number, wallbox_device.id
         )
-        meter_readings, meter_settings = _coordinators(
-            hass, entry, meter, interval, f"{entry.title} S0 meter {number}"
-        )
-        # An S0 meter is an optional extra: its entities go unavailable while
-        # it does not answer instead of holding up the wallbox.
-        await meter_readings.async_refresh()
-        await meter_settings.async_refresh()
-        runtime_data.s0_meters[number] = CfosUnitData(
-            device=meter,
-            readings=meter_readings,
-            settings=meter_settings,
-            # An input of the wallbox's controller, so a part of that device.
-            # An S0 device of an older version becomes a child in place.
-            device_info=ChildDeviceInfo(
-                identifiers={(DOMAIN, f"{serial}_s0_{number}")},
-                parent_device_id=wallbox_device.id,
-                translation_key="s0_meter",
-                translation_placeholders={"number": str(number)},
-            ),
-            unique_id_prefix=f"{serial}_s0_{number}",
-        )
-
     if entry.options.get(CONF_CHARGING_MANAGER):
         runtime_data.charging_manager = await _async_setup_charging_manager(
             hass, entry, serial, interval
@@ -132,6 +107,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None
 
     entry.runtime_data = runtime_data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+
+async def _async_setup_s0_meter(
+    hass: HomeAssistant,
+    entry: CfosConfigEntry,
+    serial: str,
+    interval: timedelta,
+    number: int,
+    wallbox_device_id: str,
+) -> CfosUnitData[CfosS0Meter]:
+    """Reach an S0 meter input of the wallbox's controller."""
+    meter = CfosS0Meter(
+        _async_get_unit(hass, entry, S0_METER_PORTS[number], S0_METER_UNIT_IDS[number])
+    )
+    readings, settings = _coordinators(
+        hass, entry, meter, interval, f"{entry.title} S0 meter {number}"
+    )
+    # Optional: its entities go unavailable while it does not answer instead
+    # of holding up the wallbox.
+    await readings.async_refresh()
+    await settings.async_refresh()
+    prefix = f"{serial}_s0_{number}"
+    return CfosUnitData(
+        device=meter,
+        readings=readings,
+        settings=settings,
+        # An input of the controller, so a part of the wallbox device. The
+        # S0 device of an older version becomes a child in place.
+        device_info=ChildDeviceInfo(
+            identifiers={(DOMAIN, prefix)},
+            parent_device_id=wallbox_device_id,
+            translation_key="s0_meter",
+            translation_placeholders={"number": str(number)},
+        ),
+        unique_id_prefix=prefix,
+    )
 
 
 async def _async_setup_charging_manager(
