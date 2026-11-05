@@ -60,7 +60,7 @@ once two checks are green:
 
 | Job | Checks |
 | --- | --- |
-| Lint and type-check | ruff, ruff format, `strings.json` equal to `translations/en.json`, mypy |
+| Lint and type-check | ruff, ruff format, mypy |
 | Integration tests | pytest; every module above 95 % coverage, `config_flow.py` at 100 % (`script/check_coverage.py`) |
 | Device library | the library tests on the oldest and newest supported `modbus-connection` |
 | Quality scale | `script/check_quality_scale.py`: the target rules are done or exempt, and hassfest's own rule checks pass |
@@ -102,9 +102,9 @@ Use the Home Assistant version pinned in `pyproject.toml` as the branch.
   `flash=True` (unchanged values are not written), `EntityCategory.CONFIG`
   and are disabled by default. Volatile values may be written as often as
   needed. The README tables state which is which.
-- **Translations:** `strings.json` and `translations/en.json` are identical;
-  `translations/de.json` is kept in sync. Errors raised to the user use
-  translation keys.
+- **Translations:** `translations/en.json` is the source; custom integrations
+  don't use `strings.json`. `translations/de.json` is kept in sync. Errors
+  raised to the user use translation keys.
 - **Config entry migrations:** when a change alters what an existing entry
   stores (data, options) or how its entities are identified (unique IDs),
   migrate existing entries in `async_migrate_entry` instead of asking users to

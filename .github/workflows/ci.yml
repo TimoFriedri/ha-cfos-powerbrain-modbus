@@ -52,8 +52,6 @@ jobs:
               - *workflow
               - *dependencies
               - "**/*.py"
-              - custom_components/cfos_powerbrain/strings.json
-              - custom_components/cfos_powerbrain/translations/**
             tests:
               - *workflow
               - *dependencies
@@ -98,12 +96,6 @@ jobs:
         run: |
           uv run ruff check .
           uv run ruff format --check .
-
-      - name: Translations
-        # Home Assistant loads translations/en.json; strings.json is its source.
-        run: >
-          cmp custom_components/cfos_powerbrain/strings.json
-          custom_components/cfos_powerbrain/translations/en.json
 
       - name: Mypy
         # Strict, plus the checks Home Assistant core adds (Platinum strict-typing).
