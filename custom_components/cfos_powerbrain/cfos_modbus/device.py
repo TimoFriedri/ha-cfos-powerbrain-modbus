@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, override
 
 from modbus_connection.model import Device, Raw, UpdateReport, read_optional
 
@@ -44,6 +44,10 @@ class CfosDevice(Device):
     def private_registers(self) -> Iterable[int]:
         """Registers that identify the owner, for redacting a raw dump."""
         return ()
+
+    def summary(self) -> dict[str, Any]:
+        """What a bug report needs besides the registers."""
+        return {"firmware": self.firmware_version}
 
     async def async_update_readings(self) -> UpdateReport:
         """Refresh what the device measures."""
@@ -92,6 +96,11 @@ class PowerBrainUnit(CfosDevice):
     def private_registers(self) -> Iterable[int]:
         """The serial number and the last RFID tag."""
         return (*range(8008, 8016), *range(8096, 8111))
+
+    @override
+    def summary(self) -> dict[str, Any]:
+        """The firmware and the version of the register map."""
+        return {**super().summary(), "mapping_version": self.identity.mapping_version}
 
     @override
     async def _async_setup(self) -> None:
