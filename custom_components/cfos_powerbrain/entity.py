@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass
 from typing import Any, override
 
@@ -33,6 +33,30 @@ class CfosEntityDescription(EntityDescription):
         return component is not None and (
             self.exists_fn is None or self.exists_fn(component)
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class CfosFieldEntityDescription(CfosEntityDescription):
+    """Describe an entity that shows and writes one field of a component."""
+
+    field: str
+    """Attribute name of the field on the component."""
+
+    flash: bool = False
+    """The device stores the field in flash, so unchanged values are not written."""
+
+
+def supported_entities[
+    DeviceT: CfosDevice,
+    DescriptionT: CfosEntityDescription,
+    EntityT,
+](
+    unit: CfosUnitData[DeviceT],
+    descriptions: Iterable[DescriptionT],
+    create: Callable[[CfosUnitData[DeviceT], DescriptionT], EntityT],
+) -> list[EntityT]:
+    """The entities of the descriptions the unit supports."""
+    return [create(unit, d) for d in descriptions if d.supported(unit.device)]
 
 
 class CfosEntity[DeviceT: CfosDevice](CoordinatorEntity[CfosCoordinator]):
@@ -85,3 +109,21 @@ class CfosEntity[DeviceT: CfosDevice](CoordinatorEntity[CfosCoordinator]):
                 translation_placeholders={"error": str(err)},
             ) from err
         await self.coordinator.async_refresh()
+
+
+class CfosFieldEntity[DeviceT: CfosDevice](CfosEntity[DeviceT]):
+    """An entity that shows and writes one field of a component."""
+
+    entity_description: CfosFieldEntityDescription
+
+    @property
+    def _field_value(self) -> Any:
+        """The field from the most recent poll, None while the component is absent."""
+        return getattr(self._component, self.entity_description.field, None)
+
+    async def _async_write_field(self, value: float) -> None:
+        """Write the field; one kept in flash only when it changes."""
+        description = self.entity_description
+        if description.flash and value == self._field_value:
+            return
+        await self._async_write(self._component.write(description.field, value))

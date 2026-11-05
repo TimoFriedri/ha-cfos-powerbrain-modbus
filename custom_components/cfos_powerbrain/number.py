@@ -24,20 +24,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .cfos_modbus import MIN_CHARGING_CURRENT, CfosDevice
 from .const import MAX_CURRENT_SETTING
 from .coordinator import CfosConfigEntry
-from .entity import CfosEntity, CfosEntityDescription
+from .entity import CfosFieldEntity, CfosFieldEntityDescription, supported_entities
 
 PARALLEL_UPDATES = 1
 
 
 @dataclass(frozen=True, kw_only=True)
-class CfosNumberEntityDescription(NumberEntityDescription, CfosEntityDescription):
+class CfosNumberEntityDescription(NumberEntityDescription, CfosFieldEntityDescription):
     """Describe a writable register of a cFos unit."""
-
-    field: str
-    """Attribute name of the field on the component."""
-
-    flash: bool = False
-    """The device stores the register in flash, so unchanged values are not written."""
 
 
 def _current(
@@ -181,28 +175,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up the number entities."""
     runtime_data = entry.runtime_data
-    wallbox = runtime_data.wallbox
-    entities: list[CfosNumber[Any]] = [
-        CfosNumber(wallbox, description)
-        for description in WALLBOX_NUMBERS
-        if description.supported(wallbox.device)
-    ]
+    entities: list[CfosNumber[Any]] = []
+    entities += supported_entities(runtime_data.wallbox, WALLBOX_NUMBERS, CfosNumber)
     for meter in runtime_data.s0_meters.values():
-        entities.extend(
-            CfosNumber(meter, description)
-            for description in S0_METER_NUMBERS
-            if description.supported(meter.device)
-        )
+        entities += supported_entities(meter, S0_METER_NUMBERS, CfosNumber)
     if (manager := runtime_data.charging_manager) is not None:
-        entities.extend(
-            CfosNumber(manager, description)
-            for description in CHARGING_MANAGER_NUMBERS
-            if description.supported(manager.device)
-        )
+        entities += supported_entities(manager, CHARGING_MANAGER_NUMBERS, CfosNumber)
     async_add_entities(entities)
 
 
-class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
+class CfosNumber[DeviceT: CfosDevice](CfosFieldEntity[DeviceT], NumberEntity):
     """A writable register of a cFos unit."""
 
     entity_description: CfosNumberEntityDescription
@@ -211,15 +193,10 @@ class CfosNumber[DeviceT: CfosDevice](CfosEntity[DeviceT], NumberEntity):
     @override
     def native_value(self) -> float | None:
         """The value from the most recent poll."""
-        value: float | None = getattr(
-            self._component, self.entity_description.field, None
-        )
+        value: float | None = self._field_value
         return value
 
     @override
     async def async_set_native_value(self, value: float) -> None:
         """Write the value to the device."""
-        description = self.entity_description
-        if description.flash and value == self.native_value:
-            return
-        await self._async_write(self._component.write(description.field, value))
+        await self._async_write_field(value)

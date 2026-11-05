@@ -17,7 +17,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .cfos_modbus import CfosWallbox, EvseStatus
 from .coordinator import CfosConfigEntry
-from .entity import CfosEntity, CfosEntityDescription
+from .entity import CfosEntity, CfosEntityDescription, supported_entities
 
 PARALLEL_UPDATES = 0
 
@@ -67,11 +67,10 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the binary sensors."""
-    wallbox = entry.runtime_data.wallbox
     async_add_entities(
-        CfosBinarySensor(wallbox, description)
-        for description in WALLBOX_BINARY_SENSORS
-        if description.supported(wallbox.device)
+        supported_entities(
+            entry.runtime_data.wallbox, WALLBOX_BINARY_SENSORS, CfosBinarySensor
+        )
     )
 
 
@@ -84,4 +83,4 @@ class CfosBinarySensor(CfosEntity[CfosWallbox], BinarySensorEntity):
     @override
     def is_on(self) -> bool | None:
         """The state from the most recent poll."""
-        return self.entity_description.value_fn(self.device.status)
+        return self.entity_description.value_fn(self._component)

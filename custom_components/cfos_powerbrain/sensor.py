@@ -44,7 +44,7 @@ from .cfos_modbus import (
     S0MeterReadings,
 )
 from .coordinator import CfosConfigEntry, CfosUnitData
-from .entity import CfosEntity, CfosEntityDescription
+from .entity import CfosEntity, CfosEntityDescription, supported_entities
 
 PARALLEL_UPDATES = 0
 
@@ -272,26 +272,14 @@ async def async_setup_entry(
     """Set up the sensors."""
     runtime_data = entry.runtime_data
     wallbox = runtime_data.wallbox
-    entities: list[SensorEntity] = [
-        _create(wallbox, description)
-        for description in WALLBOX_SENSORS
-        if description.supported(wallbox.device)
-    ]
-    if SESSION_ENERGY.supported(wallbox.device):
-        entities.append(CfosSessionEnergySensor(wallbox, SESSION_ENERGY))
+    entities: list[SensorEntity] = []
+    entities += supported_entities(wallbox, WALLBOX_SENSORS, _create)
+    entities += supported_entities(wallbox, [SESSION_ENERGY], CfosSessionEnergySensor)
     for meter in runtime_data.s0_meters.values():
-        entities.extend(
-            _create(meter, description)
-            for description in S0_METER_SENSORS
-            if description.supported(meter.device)
-        )
+        entities += supported_entities(meter, S0_METER_SENSORS, _create)
     if (manager := runtime_data.charging_manager) is not None:
-        entities.extend(
-            _create(manager, description)
-            for description in CHARGING_MANAGER_SENSORS
-            if description.supported(manager.device)
-        )
-        entities.extend(_variable_sensors(manager))
+        entities += supported_entities(manager, CHARGING_MANAGER_SENSORS, _create)
+        entities += _variable_sensors(manager)
     async_add_entities(entities)
 
 
