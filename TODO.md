@@ -31,28 +31,6 @@ release.
 - [ ] After the catalog took the repository in, check the icon before
       installation.
 
-## Home Assistant 2026.11 follow-up
-
-A second pull request, once `pytest-homeassistant-custom-component` is
-published for Home Assistant 2026.11; the one for 2026.10.4 does not run on it.
-
-- [ ] Move the `dev` pins in `pyproject.toml` to Home Assistant 2026.11, with
-      the Modbus packages it ships (`modbus-connection[tmodbus]==4.12.7`,
-      `tmodbus==1.1.0`), and drop the Pillow override: 2026.11 pins Pillow
-      13.0.0 itself.
-- [ ] hassfest is split into `packages/hassfest` (`hassfest.model`) and
-      `script/hassfest` since 2026.11: adapt `script/check_quality_scale.py`,
-      the quality scale job's sparse checkout, and the local instructions in
-      `AGENTS.md`.
-- [ ] The library job's oldest `modbus-connection` becomes 4.12.7.
-- [ ] Register the wallbox with `async_get_or_create_from_info` instead of
-      unpacking its `DeviceInfo`, which only still works through a
-      compatibility layer.
-- [ ] Let `async_setup_entry`, `async_unload_entry` and `async_migrate_entry`
-      return `None`, with `async_unload_platforms_or_raise`.
-- [ ] Show the Charging Manager port and Modbus ID in the setup and options
-      forms only while the Charging Manager is switched on (`visible`).
-
 ## Before Home Assistant 2027.11
 
 - [ ] Implement `async_entity_id_changed` in the sensors that override
