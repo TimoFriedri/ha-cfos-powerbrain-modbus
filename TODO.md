@@ -1,52 +1,62 @@
 # To do
 
-## HACS shows no icon for the integration
+## Get into the Marketplace catalog
 
-Home Assistant shows the integration's icon (Settings → Devices & services),
-but HACS shows a placeholder.
+The Marketplace (Home Assistant 2026.11, **Settings → Marketplace**) shows the
+catalog in [hacs/default](https://github.com/hacs/default) to everyone. Until
+this repository is in it, users add it from the README's Marketplace button as
+a custom repository, which needs the Marketplace's GitHub connection. See
+[Get into the catalog](https://contributors.home-assistant.io/marketplace/guides/catalog/).
 
-**Why:** since Home Assistant 2026.3, custom integrations ship their icons in
-`custom_components/<domain>/brand/`
-([developer blog](https://developers.home-assistant.io/blog/2026/02/24/brands-proxy-api)).
-Ours are there and correct: `icon.png` (256×256), `icon@2x.png` (512×512) and
-both logos, in every release since 0.1.0. HACS does not read that folder. It
-still loads icons from brands.home-assistant.io, which has none for
-`cfos_powerbrain`. Other integrations report the same
-([hacs/integration#5171](https://github.com/hacs/integration/issues/5171),
-[hacs/integration#5402](https://github.com/hacs/integration/issues/5402)).
+- [ ] Update the repository description on GitHub: it still says
+      "Installable via HACS" and leaves out the Charging Manager.
+- [ ] Publish 0.6.0 as a full GitHub release, after CI (with the HACS and
+      hassfest jobs) passed on `main`.
+- [ ] Open the pull request to hacs/default from your own account: add
+      `TimoFriedri/ha-cfos-powerbrain-modbus` to the `integration` file, in
+      alphabetical order, from a branch of a fork. Fill in its template: the
+      checklist, and links to the 0.6.0 release, a passing run of the HACS job
+      and a passing run of the hassfest job.
+- [ ] Wait for the review; it can take months.
 
-**Not fixable here:**
+## Icon in the Marketplace
 
-- HACS itself will not get a fix: the pull request that would have served
-  `brand/` icons was closed unmerged on 2026-10-16
-  ([hacs/integration#5388](https://github.com/hacs/integration/pull/5388)),
-  because HACS is moving into Home Assistant as the *Marketplace*
-  integration.
-- The brands repository's `custom_integrations` folder is legacy; new custom
-  integration icons do not go there any more
-  ([brands README](https://github.com/home-assistant/brands/blob/master/README.md)).
-- The brands site's Marketplace path
-  (`brands.home-assistant.io/marketplace/<domain>/icon.png`) serves icons
-  from the integration's own repository, but only for repositories in the
-  HACS default list (it reads `data-v2.hacs.xyz/integration/data.json`). This
-  repository is added as a custom repository, so it is not included.
+The icon ships in `custom_components/cfos_powerbrain/brand/`. Home Assistant
+shows it once the integration is installed, and so does the Marketplace since
+2026.11. Before installation, the Marketplace only shows icons of
+repositories in the catalog: the brands site picks them up from their latest
+release.
 
-**To do:**
+- [ ] Check the icon of the installed integration in the Marketplace.
+- [ ] After the catalog took the repository in, check the icon before
+      installation.
 
-- [ ] After updating to Home Assistant 2026.11, check the icon in Marketplace.
-      A HACS maintainer closed #5402 with "This is fixed in Marketplace, which
-      ships with Home Assistant 2026.11". Unconfirmed: how Marketplace treats
-      repositories added by URL rather than from the default list.
-- [ ] If it is still missing, decide whether to submit the repository to the
-      default list (check how submissions work now that HACS is Marketplace).
-      That would also show the icon before installation.
-- [ ] Optional, until then: a README note that HACS shows a placeholder icon.
+## Home Assistant 2026.11 follow-up
 
-## Due with Home Assistant 2026.11
+A second pull request, once `pytest-homeassistant-custom-component` is
+published for Home Assistant 2026.11; the one for 2026.10.4 does not run on it.
 
-- [ ] Add the manifest `categories` (`energy.ev_charging`,
-      `energy.meters_monitoring`) once hassfest accepts them. Hassfest in
-      Home Assistant 2026.10 rejects the key.
+- [ ] Move the `dev` pins in `pyproject.toml` to Home Assistant 2026.11, with
+      the Modbus packages it ships (`modbus-connection[tmodbus]==4.12.7`,
+      `tmodbus==1.1.0`), and drop the Pillow override: 2026.11 pins Pillow
+      13.0.0 itself.
+- [ ] hassfest is split into `packages/hassfest` (`hassfest.model`) and
+      `script/hassfest` since 2026.11: adapt `script/check_quality_scale.py`,
+      the quality scale job's sparse checkout, and the local instructions in
+      `AGENTS.md`.
+- [ ] The library job's oldest `modbus-connection` becomes 4.12.7.
+- [ ] Register the wallbox with `async_get_or_create_from_info` instead of
+      unpacking its `DeviceInfo`, which only still works through a
+      compatibility layer.
+- [ ] Let `async_setup_entry`, `async_unload_entry` and `async_migrate_entry`
+      return `None`, with `async_unload_platforms_or_raise`.
+- [ ] Show the Charging Manager port and Modbus ID in the setup and options
+      forms only while the Charging Manager is switched on (`visible`).
+
+## Before Home Assistant 2027.11
+
+- [ ] Implement `async_entity_id_changed` in the sensors that override
+      `async_added_to_hass`, so a renamed entity ID is updated in place.
 
 ## Features
 

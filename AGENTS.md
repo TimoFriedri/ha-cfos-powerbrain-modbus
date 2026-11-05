@@ -7,10 +7,11 @@ covers how to develop it.
 ## What this is
 
 A Home Assistant custom integration (domain `cfos_powerbrain`, installed
-through HACS) for the cFos Power Brain Wallbox and the cFos Charging Manager,
-over **Modbus TCP only**. The HTTP API is out of scope.
+through Home Assistant's Marketplace) for the cFos Power Brain Wallbox and the
+cFos Charging Manager, over **Modbus TCP only**. The HTTP API is out of scope.
 
-- It requires Home Assistant **2026.11.0** or newer (`hacs.json`), the release that brings the Marketplace.
+- It requires Home Assistant **2026.11.0** or newer (`hacs.json`), the release
+  that brings the Marketplace.
 - Connections come from Home Assistant's `modbus` integration
   (`modbus.async_get_unit`, `async_get_temporary_unit` in the config flow), so
   the manifest lists `modbus` as a dependency and has no requirements of its
@@ -98,6 +99,9 @@ Use the Home Assistant version pinned in `pyproject.toml` as the branch.
   `exists_fn` receive the component; the base entity handles a missing one.
   Unique IDs are `{serial}_{key}` (the Charging Manager and S0 meters add
   their own prefix) and must never change.
+- **Devices:** the wallbox is the main device. The S0 meters are child devices
+  of it, being inputs of its controller. The Charging Manager is a device of
+  its own next to it.
 - **Volatile or flash:** writable values the device stores in flash get
   `flash=True` (unchanged values are not written), `EntityCategory.CONFIG`
   and are disabled by default. Volatile values may be written as often as
@@ -165,12 +169,14 @@ without checking the rule. In practice this means:
 - Each commit passes the checks on its own. Push changes to a branch, not
   to `main`; do not create pull requests, tags or releases unless asked.
 - Releases: bump `version` in `manifest.json`, then the maintainer tags
-  `X.Y.Z` (no `v` prefix) on GitHub and writes the release notes. HACS offers
-  the GitHub releases. CI enforces both ends:
+  `X.Y.Z` (no `v` prefix) on GitHub as a full release, not just a tag, and
+  writes the release notes. The Marketplace offers the releases, and shows
+  their notes on the update entity. CI enforces both ends:
   - once `custom_components/` changed since the latest release tag, the
     version in `manifest.json` must be above that tag, so the first such pull
     request after a release bumps it;
   - a pushed release tag must equal the version in `manifest.json`
     (`.github/workflows/release.yml`).
-- The manifest `categories` are held back until hassfest accepts them
-  (expected with Home Assistant 2026.11); see [TODO.md](TODO.md).
+- The manifest lists one to three integration categories, now
+  `energy.ev_charging` and `energy.meters_monitoring`; the HACS action fails
+  on an unknown one.

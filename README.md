@@ -5,14 +5,13 @@
 
 # cFos Power Brain Wallbox (Modbus) for Home Assistant
 
-[![HACS Custom][hacs-badge]][hacs]
 [![CI][ci-badge]][ci]
 
 Monitor and control a **cFos Power Brain Wallbox**, or a wallbox built around
 the **cFos Power Brain Controller**, from Home Assistant over **Modbus TCP**,
 using the [Modbus framework introduced in Home Assistant 2026.9][ha-modbus].
 
-[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?category=custom+integration&owner=TimoFriedri&repository=https%3A%2F%2Fgithub.com%2FTimoFriedri%2Fha-cfos-powerbrain-modbus)
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=TimoFriedri&repository=ha-cfos-powerbrain-modbus&category=integration)
 
 [cFos Software GmbH](https://www.cfos-emobility.de) makes the cFos Power
 Brain Wallbox and the cFos Power Brain Controller, which other wallbox makers
@@ -60,8 +59,9 @@ what writing a value does; see
 | 8120 | Restarts | diagnostic, disabled | read-only | |
 | 8122 | Controller temperature | diagnostic | read-only | controller Rev. 3.0 and later |
 
-**S0 meters** (optional, slave IDs 2 and 3, TCP ports 4702 and 4703): power,
-total energy and currents L1–L3, all read-only. Disabled extras: the pulse
+**S0 meters** (optional, slave IDs 2 and 3, TCP ports 4702 and 4703; each a
+device below the wallbox): power, total energy and currents L1–L3, all
+read-only. Disabled extras: the pulse
 counter and the time between pulses (read-only); pulses per kWh and the
 nominal voltages (**flash**); buttons to reset the energy and pulse counters
 (**flash**).
@@ -246,12 +246,19 @@ Manager has.
 
 ## Installation
 
-### HACS
+### Marketplace
 
-1. In HACS, open the menu → **Custom repositories**.
-2. Add `https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus` with type
-   **Integration**.
-3. Install **cFos Power Brain Wallbox (Modbus)** and restart Home Assistant.
+1. Open the integration in the Marketplace of your Home Assistant
+   (**Settings → Marketplace**) with this button:
+
+   [![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=TimoFriedri&repository=ha-cfos-powerbrain-modbus&category=integration)
+
+   Until the integration is in the Marketplace catalog, the Marketplace offers
+   to add it as a custom repository first, which needs its GitHub connection.
+   You can also add `https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus`
+   as a custom repository of the type **Integration** yourself.
+2. Install **cFos Power Brain Wallbox (Modbus)**. It loads without a restart,
+   ready to be added.
 
 ### Manual
 
@@ -261,7 +268,11 @@ of your Home Assistant configuration and restart.
 ## Configuration
 
 **Settings → Devices & services → Add integration → cFos Power Brain Wallbox
-(Modbus)**, then enter:
+(Modbus)**, or this button once the integration is installed:
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=cfos_powerbrain)
+
+Then enter:
 
 | Field | Default | |
 | --- | --- | --- |
@@ -283,7 +294,7 @@ address.
 
 - **Polling interval**: change the interval set during setup (1–30 s).
   Settings such as the fail-safe are read every 5 minutes regardless.
-- **S0 meters**: adds S0 meter 1 and/or 2 as devices.
+- **S0 meters**: adds S0 meter 1 and/or 2 as devices below the wallbox.
 - **Charging Manager**, **Charging Manager port**, **Charging Manager Modbus
   ID**: switch the Charging Manager on or off, or change its port and Modbus
   ID, as set during setup.
@@ -313,9 +324,10 @@ Modbus ID + 1. The integration does not read that list yet.
 1. **Settings → Devices & services → cFos Power Brain Wallbox (Modbus) → ⋮ →
    Delete.** This removes the devices and entities and closes the Modbus
    connections.
-2. Installed through HACS: **HACS → cFos Power Brain Wallbox (Modbus) → ⋮ →
-   Remove**, then restart Home Assistant. Installed manually: delete
-   `custom_components/cfos_powerbrain` and restart.
+2. Installed through the Marketplace: remove it from its menu under
+   **Settings → Marketplace**, then restart Home Assistant when the repair
+   asks for it. Installed manually: delete `custom_components/cfos_powerbrain`
+   and restart.
 
 What stays on the wallbox afterwards:
 
@@ -473,8 +485,8 @@ integration has two layers:
   settings, health, S0 meters), reads only documented register ranges and
   validates values before writing. For the Charging Manager it scans the
   SunSpec model chain and places components at the models it finds. It is
-  vendored here so HACS can install it, and can move to its own PyPI package
-  unchanged.
+  vendored here so the Marketplace installs it with the integration, and can
+  move to its own PyPI package unchanged.
 - `custom_components/cfos_powerbrain/`: the Home Assistant integration. It
   has the config flow, the coordinators and the entities, and gets its Modbus
   units from the `modbus` integration.
@@ -502,12 +514,10 @@ product here, as it does for the HTTP API integration in Home Assistant's
 [brands repository](https://github.com/home-assistant/brands). Writing to a
 wallbox controls real hardware; use at your own risk.
 
-[hacs]: https://hacs.xyz
-[hacs-badge]: https://img.shields.io/badge/HACS-Custom-orange.svg
 [ci]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/ci.yml
 [ci-badge]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/actions/workflows/ci.yml/badge.svg
 [issues]: https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/issues
-[ha-modbus]: https://developers.home-assistant.io/docs/modbus/introduction
+[ha-modbus]: https://contributors.home-assistant.io/core/internals/modbus/
 [modbus-connection]: https://github.com/home-assistant-libs/modbus-connection
 [cfos-registers]: https://www.cfos-emobility.de/en/cfos-power-brain/modbus-registers.htm
 [cfos-docs]: https://www.cfos-emobility.de/en/cfos-charging-manager/documentation/power-brain-configuration.htm
