@@ -10,7 +10,7 @@ A Home Assistant custom integration (domain `cfos_powerbrain`, installed
 through HACS) for the cFos Power Brain Wallbox and the cFos Charging Manager,
 over **Modbus TCP only**. The HTTP API is out of scope.
 
-- It requires Home Assistant **2026.10.0** or newer (`hacs.json`).
+- It requires Home Assistant **2026.11.0** or newer (`hacs.json`), the release that brings the Marketplace.
 - Connections come from Home Assistant's `modbus` integration
   (`modbus.async_get_unit`, `async_get_temporary_unit` in the config flow), so
   the manifest lists `modbus` as a dependency and has no requirements of its

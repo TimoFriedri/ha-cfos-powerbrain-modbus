@@ -235,7 +235,7 @@ Manager has.
 
 ## Requirements
 
-- Home Assistant **2026.10.0** or newer.
+- Home Assistant **2026.11.0** or newer.
 - A cFos Power Brain Wallbox, or a wallbox with the cFos Power Brain
   Controller, reachable on your network, with Modbus TCP available on ports
   4701 (wallbox) and, for the S0 meters, 4702 and 4703.
