@@ -8,7 +8,7 @@ from unittest.mock import patch
 from modbus_connection import ModbusConnectionError, ModbusTimeoutError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL

@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        modbus-connection: ["==4.12.3", ""]
+        modbus-connection: ["==4.12.7", ""]
     steps:
       - name: Check out the repository
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -186,7 +186,9 @@ jobs:
           repository: home-assistant/core
           ref: ${{ steps.homeassistant.outputs.version }}
           path: home-assistant-core
-          sparse-checkout: script/hassfest
+          sparse-checkout: |
+            script/hassfest
+            packages/hassfest
           persist-credentials: false
 
       - name: Check the quality scale

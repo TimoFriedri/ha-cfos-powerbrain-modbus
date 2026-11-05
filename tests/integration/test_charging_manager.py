@@ -10,13 +10,13 @@ from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusConnectionError
 from modbus_connection.mock import MockModbusConnection, MockModbusUnit
 import pytest
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
 )
-from pytest_homeassistant_custom_component.components.diagnostics import (
+from pytest_homeassistant.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
-from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+from pytest_homeassistant.typing import ClientSessionGenerator
 
 from homeassistant.components.number import ATTR_VALUE, SERVICE_SET_VALUE
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState

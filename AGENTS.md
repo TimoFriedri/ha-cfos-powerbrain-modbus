@@ -78,9 +78,9 @@ To run the coverage and quality scale checks locally:
 
 ```bash
 uv run pytest --cov --cov-report=json && uv run python script/check_coverage.py
-git clone --depth 1 --branch 2026.10.2 --filter=blob:none --sparse \
+git clone --depth 1 --branch 2026.11.0 --filter=blob:none --sparse \
   https://github.com/home-assistant/core ../home-assistant-core
-git -C ../home-assistant-core sparse-checkout set script/hassfest
+git -C ../home-assistant-core sparse-checkout set script/hassfest packages/hassfest
 uv run python script/check_quality_scale.py ../home-assistant-core
 ```
 

@@ -8,12 +8,13 @@ requires-python = ">=3.14.2"
 
 [dependency-groups]
 dev = [
-    # Pins Home Assistant 2026.10.2 and its test harness.
-    "pytest-homeassistant-custom-component==0.13.373",
-    # What Home Assistant 2026.10.2's modbus integration installs at runtime.
-    "modbus-connection[tmodbus]==4.12.4",
+    # Pins Home Assistant 2026.11.0 and its test package.
+    "pytest-homeassistant==2026.11.0",
+    "pytest-cov==7.1.0",
+    # What Home Assistant 2026.11.0's modbus integration installs at runtime.
+    "modbus-connection[tmodbus]==4.12.7",
     "pymodbus==3.13.1",
-    "tmodbus==0.6.2",
+    "tmodbus==1.1.0",
     "ruff==0.17.2",
     "mypy==2.4.0",
 ]
@@ -22,13 +23,12 @@ dev = [
 # The uv version for development and CI; setup-uv installs this one.
 required-version = "==0.13.4"
 package = false
-# Home Assistant 2026.10 pins Pillow 12.3.0, which has known vulnerabilities.
-# Only the test harness brings it in; nothing here uses it.
-override-dependencies = ["pillow>=13.0.0"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# Let Home Assistant install its httpx alias before respx is imported.
+addopts = "-p no:respx"
 testpaths = ["tests"]
 pythonpath = ["."]
 

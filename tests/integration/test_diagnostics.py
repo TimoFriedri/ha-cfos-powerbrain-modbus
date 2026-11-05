@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from modbus_connection import ModbusTimeoutError
 from modbus_connection.mock import MockModbusConnection
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     mock_restore_cache_with_extra_data,
 )
-from pytest_homeassistant_custom_component.components.diagnostics import (
+from pytest_homeassistant.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
-from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
+from pytest_homeassistant.typing import ClientSessionGenerator
 
 from homeassistant.core import HomeAssistant, State
 

@@ -12,7 +12,7 @@ from modbus_connection import (
 )
 from modbus_connection.mock import MockModbusConnection
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE
