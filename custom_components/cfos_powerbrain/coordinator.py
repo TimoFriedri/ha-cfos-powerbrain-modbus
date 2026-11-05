@@ -15,7 +15,7 @@ from modbus_connection.model.sunspec import SunSpecError, SunSpecMapShiftError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryError
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .cfos_modbus import (
@@ -123,7 +123,7 @@ class CfosUnitData[DeviceT: CfosDevice]:
     device: DeviceT
     readings: CfosCoordinator
     settings: CfosCoordinator
-    device_info: DeviceInfo
+    device_info: DeviceInfo | ChildDeviceInfo
     unique_id_prefix: str
 
     def coordinator_for(self, component: str) -> CfosCoordinator:

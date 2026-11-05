@@ -10,7 +10,7 @@ from homeassistant.components.modbus import async_get_unit
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv, device_registry as dr
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import ChildDeviceInfo, DeviceInfo
 from homeassistant.helpers.typing import ConfigType
 
 from .cfos_modbus import (
@@ -53,11 +53,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None:
     """Set up a cFos Power Brain Wallbox from a config entry."""
     serial = entry.unique_id
     assert serial is not None
-    host: str = entry.data[CONF_HOST]
     interval = timedelta(
         seconds=entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
     )
@@ -74,55 +73,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
     await settings.async_refresh()
 
     identity = wallbox.identity
+    wallbox_info = DeviceInfo(
+        identifiers={(DOMAIN, serial)},
+        manufacturer=MANUFACTURER,
+        model=identity.name or "cFos Power Brain Controller",
+        name=entry.title,
+        serial_number=serial,
+        sw_version=identity.firmware_version,
+        configuration_url=f"http://{entry.data[CONF_HOST]}",
+    )
     runtime_data = CfosRuntimeData(
         wallbox=CfosUnitData(
             device=wallbox,
             readings=readings,
             settings=settings,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, serial)},
-                manufacturer=MANUFACTURER,
-                model=identity.name or "cFos Power Brain Controller",
-                name=entry.title,
-                serial_number=serial,
-                sw_version=identity.firmware_version,
-                configuration_url=f"http://{host}",
-            ),
+            device_info=wallbox_info,
             unique_id_prefix=serial,
         )
     )
-    # Registered up front: the S0 meters name it as the device they sit on.
-    wallbox_device = dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id, **runtime_data.wallbox.device_info
+    # Registered up front: it is the parent of the S0 meters' child devices.
+    wallbox_device = dr.async_get(hass).async_get_or_create_from_info(
+        config_entry_id=entry.entry_id, device_info=wallbox_info
     )
 
     for number in sorted(int(n) for n in entry.options.get(CONF_S0_METERS, [])):
-        meter = CfosS0Meter(
-            _async_get_unit(
-                hass, entry, S0_METER_PORTS[number], S0_METER_UNIT_IDS[number]
-            )
+        runtime_data.s0_meters[number] = await _async_setup_s0_meter(
+            hass, entry, serial, interval, number, wallbox_device.id
         )
-        meter_readings, meter_settings = _coordinators(
-            hass, entry, meter, interval, f"{entry.title} S0 meter {number}"
-        )
-        # An S0 meter is an optional extra: its entities go unavailable while
-        # it does not answer instead of holding up the wallbox.
-        await meter_readings.async_refresh()
-        await meter_settings.async_refresh()
-        runtime_data.s0_meters[number] = CfosUnitData(
-            device=meter,
-            readings=meter_readings,
-            settings=meter_settings,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{serial}_s0_{number}")},
-                manufacturer=MANUFACTURER,
-                translation_key="s0_meter",
-                translation_placeholders={"number": str(number)},
-                via_device_id=wallbox_device.id,
-            ),
-            unique_id_prefix=f"{serial}_s0_{number}",
-        )
-
     if entry.options.get(CONF_CHARGING_MANAGER):
         runtime_data.charging_manager = await _async_setup_charging_manager(
             hass, entry, serial, interval
@@ -130,7 +107,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
 
     entry.runtime_data = runtime_data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
+
+
+async def _async_setup_s0_meter(
+    hass: HomeAssistant,
+    entry: CfosConfigEntry,
+    serial: str,
+    interval: timedelta,
+    number: int,
+    wallbox_device_id: str,
+) -> CfosUnitData[CfosS0Meter]:
+    """Reach an S0 meter input of the wallbox's controller."""
+    meter = CfosS0Meter(
+        _async_get_unit(hass, entry, S0_METER_PORTS[number], S0_METER_UNIT_IDS[number])
+    )
+    readings, settings = _coordinators(
+        hass, entry, meter, interval, f"{entry.title} S0 meter {number}"
+    )
+    # Optional: its entities go unavailable while it does not answer instead
+    # of holding up the wallbox.
+    await readings.async_refresh()
+    await settings.async_refresh()
+    prefix = f"{serial}_s0_{number}"
+    return CfosUnitData(
+        device=meter,
+        readings=readings,
+        settings=settings,
+        # An input of the controller, so a part of the wallbox device. The
+        # S0 device of an older version becomes a child in place.
+        device_info=ChildDeviceInfo(
+            identifiers={(DOMAIN, prefix)},
+            parent_device_id=wallbox_device_id,
+            translation_key="s0_meter",
+            translation_placeholders={"number": str(number)},
+        ),
+        unique_id_prefix=prefix,
+    )
 
 
 async def _async_setup_charging_manager(
@@ -213,6 +225,6 @@ def _coordinators(
     )
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None:
     """Unload a config entry; the modbus integration closes the connections."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)

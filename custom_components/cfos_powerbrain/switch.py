@@ -12,20 +12,14 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .cfos_modbus import CfosChargingManager, CfosDevice, CmFlag
 from .coordinator import CfosConfigEntry, CfosUnitData
-from .entity import CfosEntity, CfosEntityDescription
+from .entity import CfosFieldEntity, CfosFieldEntityDescription, supported_entities
 
 PARALLEL_UPDATES = 1
 
 
 @dataclass(frozen=True, kw_only=True)
-class CfosSwitchEntityDescription(SwitchEntityDescription, CfosEntityDescription):
+class CfosSwitchEntityDescription(SwitchEntityDescription, CfosFieldEntityDescription):
     """Describe an on/off value of a cFos unit."""
-
-    field: str
-    """Attribute name of the field on the component."""
-
-    flash: bool = False
-    """The device stores the value in flash, so unchanged values are not written."""
 
 
 WALLBOX_SWITCHES: tuple[CfosSwitchEntityDescription, ...] = (
@@ -82,18 +76,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up the switches."""
     runtime_data = entry.runtime_data
-    wallbox = runtime_data.wallbox
-    entities: list[CfosSwitch[Any]] = [
-        CfosSwitch(wallbox, description)
-        for description in WALLBOX_SWITCHES
-        if description.supported(wallbox.device)
-    ]
+    entities: list[CfosSwitch[Any]] = []
+    entities += supported_entities(runtime_data.wallbox, WALLBOX_SWITCHES, CfosSwitch)
     if (manager := runtime_data.charging_manager) is not None:
-        entities.extend(
-            CfosSwitch(manager, description)
-            for description in CHARGING_MANAGER_SWITCHES
-            if description.supported(manager.device)
-        )
+        entities += supported_entities(manager, CHARGING_MANAGER_SWITCHES, CfosSwitch)
         if (flags := manager.device.flags) is not None:
             entities.extend(
                 CfosFlagSwitch(manager, number)
@@ -102,7 +88,7 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class CfosSwitch[DeviceT: CfosDevice](CfosEntity[DeviceT], SwitchEntity):
+class CfosSwitch[DeviceT: CfosDevice](CfosFieldEntity[DeviceT], SwitchEntity):
     """An on/off value of a cFos unit."""
 
     entity_description: CfosSwitchEntityDescription
@@ -111,26 +97,19 @@ class CfosSwitch[DeviceT: CfosDevice](CfosEntity[DeviceT], SwitchEntity):
     @override
     def is_on(self) -> bool | None:
         """The state from the most recent poll."""
-        value = getattr(self._component, self.entity_description.field, None)
+        value = self._field_value
         # Some devices keep the flag in a float register: 1.0 or 0.0.
         return None if value is None else bool(value)
 
     @override
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Switch the value on."""
-        await self._async_set(True)
+        await self._async_write_field(True)
 
     @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Switch the value off."""
-        await self._async_set(False)
-
-    async def _async_set(self, on: bool) -> None:
-        """Write the value; one kept in flash only when it changes."""
-        description = self.entity_description
-        if description.flash and on == self.is_on:
-            return
-        await self._async_write(self._component.write(description.field, on))
+        await self._async_write_field(False)
 
 
 class CfosFlagSwitch(CfosSwitch[CfosChargingManager]):

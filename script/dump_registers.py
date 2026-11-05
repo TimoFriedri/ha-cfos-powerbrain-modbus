@@ -50,7 +50,6 @@ from cfos_modbus import (
     CfosDevice,
     CfosS0Meter,
     CfosWallbox,
-    PowerBrainUnit,
 )
 
 
@@ -62,20 +61,13 @@ def _fields(component: Any) -> dict[str, Any]:
 
 
 async def _dump(device: CfosDevice, *, raw: bool) -> dict[str, Any]:
+    """Read every component of the device and return what it decoded."""
     report = await device.async_update()
     result: dict[str, Any] = {
         "updated": sorted(report.updated),
         "failed": {name: str(err) for name, err in report.failed.items()},
-        "firmware": device.firmware_version,
+        **device.summary(),
     }
-    if isinstance(device, PowerBrainUnit):
-        result["mapping_version"] = device.identity.mapping_version
-    if isinstance(device, CfosChargingManager) and device.models is not None:
-        result["models"] = [
-            {"id": model.model_id, "address": model.address, "length": model.length}
-            for model in device.models.chain
-        ]
-        result["variable_names"] = device.variable_names
     for name in (*device.IDENTITY, *device.READINGS, *device.SETTINGS):
         result[name] = _fields(getattr(device, name))
     if raw:

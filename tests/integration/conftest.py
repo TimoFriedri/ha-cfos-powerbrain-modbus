@@ -15,7 +15,7 @@ from freezegun.api import FrozenDateTimeFactory
 from modbus_connection import ModbusTcpParams
 from modbus_connection.mock import MockModbusConnection
 import pytest
-from pytest_homeassistant_custom_component.common import (
+from pytest_homeassistant.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )

@@ -15,6 +15,9 @@ leaves to review but a script can see:
 strict-typing itself is enforced by mypy (see pyproject.toml): hassfest's
 check for it reads core's ``.strict-typing`` file, which does not apply here.
 
+The checkout needs ``script/hassfest`` and ``packages/hassfest``: since
+Home Assistant 2026.11, the shared parts of hassfest are a package of their own.
+
 Usage: python script/check_quality_scale.py <home-assistant/core checkout>
 """
 
@@ -68,9 +71,9 @@ def _own_checks(rules_done: set[str], manifest: dict[str, object]) -> list[str]:
 
 def main(core: Path) -> int:
     """Print every problem found; return the exit code."""
-    sys.path.insert(0, str(core))
+    sys.path[:0] = [str(core), str(core / "packages" / "hassfest")]
+    from hassfest.model import Config, Integration, ScaledQualityScaleTiers
     import probatio
-    from script.hassfest.model import Config, Integration, ScaledQualityScaleTiers
     from script.hassfest.quality_scale import SCALE_RULES, SCHEMA, VALIDATORS
 
     from homeassistant.util.yaml import load_yaml_dict

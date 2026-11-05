@@ -1,43 +1,40 @@
 # Working on this repository
 
-Guidance for anyone changing this repository, human or AI agent. The
-[README](README.md) describes what the integration does for users; this file
-covers how to develop it.
+How to develop this repository, for humans and AI agents. What it does for
+users: [README](README.md).
 
 ## What this is
 
-A Home Assistant custom integration (domain `cfos_powerbrain`, installed
-through HACS) for the cFos Power Brain Wallbox and the cFos Charging Manager,
-over **Modbus TCP only**. The HTTP API is out of scope.
-
-- It requires Home Assistant **2026.10.0** or newer (`hacs.json`).
-- Connections come from Home Assistant's `modbus` integration
-  (`modbus.async_get_unit`, `async_get_temporary_unit` in the config flow), so
-  the manifest lists `modbus` as a dependency and has no requirements of its
-  own.
-- Use cFos' product names: **cFos Power Brain Wallbox**, **cFos Power Brain
-  Controller**, **cFos Charging Manager**, in every language. The integration
-  is named **cFos Power Brain Wallbox (Modbus)**; keep the "(Modbus)".
+- Home Assistant custom integration `cfos_powerbrain` for the cFos Power Brain
+  Wallbox and the cFos Charging Manager, **Modbus TCP only** (no HTTP API).
+- Installed through the Marketplace; needs Home Assistant **2026.11.0**
+  (`hacs.json`).
+- Connections come from the `modbus` integration (`modbus.async_get_unit`;
+  `async_get_temporary_unit` in the config flow): `modbus` is a manifest
+  dependency, there are no requirements.
+- Product names in every language: **cFos Power Brain Wallbox**, **cFos Power
+  Brain Controller**, **cFos Charging Manager**. The integration is **cFos
+  Power Brain Wallbox (Modbus)**; keep the "(Modbus)".
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `custom_components/cfos_powerbrain/` | The integration: config flow, coordinators, entity platforms, action, diagnostics |
+| `custom_components/cfos_powerbrain/` | Config flow, coordinators, entity platforms, action, diagnostics |
 | `custom_components/cfos_powerbrain/cfos_modbus/` | Vendored device library on `modbus-connection`, **no Home Assistant imports** |
-| `tests/lib/` | Library tests; they run without Home Assistant |
-| `tests/integration/` | Integration tests against Home Assistant, only the Modbus transport mocked |
-| `tests/registers.py` | Register images of the wallbox, S0 meters and Charging Manager, and a write recorder |
+| `tests/lib/` | Library tests, without Home Assistant |
+| `tests/integration/` | Integration tests, only the Modbus transport mocked |
+| `tests/registers.py` | Register images of wallbox, S0 meters, Charging Manager; write recorder |
 | `script/dump_registers.py` | Reads a real device without Home Assistant, for bug reports |
 
 ## Set up and check
 
-The development setup uses [uv](https://docs.astral.sh/uv/), in the version
-`required-version` in `pyproject.toml` names; CI installs the same one.
-`.python-version` pins Python to the minor version that Home Assistant
-targets, 3.14. Without it, uv would pick the newest Python allowed, for which
-many packages have no wheels yet. The `dev` dependency group pins the Home
-Assistant version tested against; `uv.lock` pins everything else.
+- [uv](https://docs.astral.sh/uv/) in the version of `required-version`
+  (`pyproject.toml`), as in CI.
+- `.python-version`: Python 3.14, as Home Assistant. Otherwise uv picks a newer
+  Python without wheels for many packages.
+- The `dev` group pins Home Assistant; `uv.lock` pins the rest. After changing
+  a pin: `uv lock`, commit both files.
 
 ```bash
 uv sync
@@ -46,131 +43,109 @@ uv run mypy
 uv run pytest
 ```
 
-All four must pass before a commit. Change a pin in `pyproject.toml`, then
-run `uv lock` and commit both files.
-
-`main` is protected: changes go through a pull request, which merges only
-once two checks are green:
-
-- **CodeQL**: GitHub's code scanning (default setup, Python and GitHub
-  Actions) analyses every pull request. Configured in the repository settings,
-  not in a workflow; a CodeQL workflow of our own would conflict with it.
-- **CI passed** of `.github/workflows/ci.yml`, which needs every job of the
-  workflow:
-
-| Job | Checks |
-| --- | --- |
-| Lint and type-check | ruff, ruff format, `strings.json` equal to `translations/en.json`, mypy |
-| Integration tests | pytest; every module above 95 % coverage, `config_flow.py` at 100 % (`script/check_coverage.py`) |
-| Device library | the library tests on the oldest and newest supported `modbus-connection` |
-| Quality scale | `script/check_quality_scale.py`: the target rules are done or exempt, and hassfest's own rule checks pass |
-| Version | `script/check_version.py`: see releases below |
-| Hassfest, HACS | Home Assistant's and HACS' validation |
-
-Each job runs only when files it checks change; the `changes` job at the top
-of `ci.yml` decides. A pull request that touches only Markdown runs none of
-them, and **CI passed** still reports. A change to `ci.yml` itself, and
-scheduled and manual runs, run every job. When a job starts to depend on
-another file, add that file to the job's filter.
-
-To run the coverage and quality scale checks locally:
+All four pass before every commit. Coverage and quality scale locally, with
+the Home Assistant version of `pyproject.toml` as the branch:
 
 ```bash
 uv run pytest --cov --cov-report=json && uv run python script/check_coverage.py
-git clone --depth 1 --branch 2026.10.2 --filter=blob:none --sparse \
+git clone --depth 1 --branch 2026.11.0 --filter=blob:none --sparse \
   https://github.com/home-assistant/core ../home-assistant-core
-git -C ../home-assistant-core sparse-checkout set script/hassfest
+git -C ../home-assistant-core sparse-checkout set script/hassfest packages/hassfest
 uv run python script/check_quality_scale.py ../home-assistant-core
 ```
 
-Use the Home Assistant version pinned in `pyproject.toml` as the branch.
+## CI
+
+`main` is protected; a pull request merges once both are green:
+
+- **CodeQL**: GitHub's default setup (Python, GitHub Actions), configured in
+  the repository settings. No CodeQL workflow of our own: it would conflict.
+- **CI passed** (`.github/workflows/ci.yml`): needs every job.
+
+| Job | Checks |
+| --- | --- |
+| Lint and type-check | ruff, ruff format, mypy |
+| Integration tests | pytest; every module above 95 % coverage, `config_flow.py` 100 % (`script/check_coverage.py`) |
+| Device library | library tests on the oldest and newest supported `modbus-connection` |
+| Quality scale | `script/check_quality_scale.py`: target rules done or exempt, hassfest's rule checks |
+| Version | `script/check_version.py`, see [releases](#commits-and-releases) |
+| Hassfest, HACS | Home Assistant's and HACS' validation |
+
+- The `changes` job runs each job only when its files change: Markdown alone
+  runs none, and **CI passed** still reports.
+- Changes to `ci.yml`, scheduled and manual runs run every job.
+- A job that starts to depend on a new file: add it to the job's filter.
 
 ## Code conventions
 
-- **Style:** ruff (rules and import sections in `pyproject.toml`) and mypy
-  `strict`. Every module, class and function has a docstring. Comments say
-  why, not what. Match the surrounding code rather than introducing new
-  patterns.
-- **Device library first:** registers, decoding and value validation belong in
-  `cfos_modbus`; the integration only maps components to entities. Read only
-  documented register ranges.
-- **Entities:** describe them with entity descriptions. `value_fn` and
-  `exists_fn` receive the component; the base entity handles a missing one.
-  Unique IDs are `{serial}_{key}` (the Charging Manager and S0 meters add
-  their own prefix) and must never change.
-- **Volatile or flash:** writable values the device stores in flash get
-  `flash=True` (unchanged values are not written), `EntityCategory.CONFIG`
-  and are disabled by default. Volatile values may be written as often as
-  needed. The README tables state which is which.
-- **Translations:** `strings.json` and `translations/en.json` are identical;
-  `translations/de.json` is kept in sync. Errors raised to the user use
+- **Style:** ruff (rules, import sections in `pyproject.toml`), mypy strict.
+  Docstrings everywhere; comments say why. Follow the surrounding code.
+- **Library first:** registers, decoding and validation in `cfos_modbus`; the
+  integration only maps components to entities. Read documented registers
+  only.
+- **Entities:** entity descriptions; `value_fn` and `exists_fn` get the
+  component, the base entity handles a missing one. Unique IDs
+  `{serial}_{key}` (Charging Manager and S0 meters add a prefix) never change.
+- **Devices:** wallbox main device; S0 meters its child devices (inputs of
+  its controller); Charging Manager a device next to it.
+- **Volatile or flash:** values stored in flash get `flash=True` (unchanged
+  values are not written), `EntityCategory.CONFIG`, disabled by default.
+  Volatile values may be written freely. The README tables say which is which.
+- **Translations:** `translations/en.json` is the source (no `strings.json`
+  in custom integrations); `de.json` kept in sync. User-facing errors use
   translation keys.
-- **Config entry migrations:** when a change alters what an existing entry
-  stores (data, options) or how its entities are identified (unique IDs),
-  migrate existing entries in `async_migrate_entry` instead of asking users to
-  set the integration up again. Bump the config flow's `MINOR_VERSION` for a
-  compatible change and `VERSION` for an incompatible one, and test the
-  migration from each older version. 0.3.0 skipped this once, during early
-  development. Breaking changes are documented in the README.
-- **Keep the docs current:** a new entity goes into the README feature tables
-  (ordered by register), a new option into the configuration section.
+- **Config entry migrations:** a change to what an entry stores or to unique
+  IDs migrates existing entries in `async_migrate_entry`. `MINOR_VERSION` for
+  a compatible change, `VERSION` for an incompatible one; test from each older
+  version. Breaking changes go into the README.
+- **Docs:** new entities into the README tables (by register), new options
+  into the configuration section.
 
-## Integration Quality Scale: target Silver
+## Quality scale: Silver plus strict-typing
 
-The current target is the **Silver** tier (which includes Bronze), plus
-Platinum's **strict-typing** rule. `quality_scale.yaml` records each rule;
-every rule of these must stay `done` or `exempt` with a reason. The other
-rules of higher tiers are `todo` until reviewed; do not mark them `done`
-without checking the rule. In practice this means:
+`quality_scale.yaml` records every rule. Silver (with Bronze) and Platinum's
+strict-typing stay `done` or `exempt` with a reason; other rules stay `todo`
+until reviewed.
 
-- Setup only through the config flow, which tests the connection before it
-  creates an entry and never configures the same controller twice.
-- Every config flow field has a `data_description`; the README describes
-  every setup field and option.
-- Entities have unique IDs and `has_entity_name`; runtime state lives in
-  `entry.runtime_data`, typed as `CfosConfigEntry`.
-- Setup fails with `ConfigEntryNotReady` or `ConfigEntryError` when the
-  wallbox cannot be used. The optional devices (S0 meters, Charging Manager)
-  must not block it.
-- Entities are **unavailable** while their data cannot be read; never show a
-  stale value as current.
-- Unavailability is logged **once**, and so is the recovery. Coordinators do
-  this themselves when the poll raises `UpdateFailed`; anything logged on top
-  is at info level.
-- Actions are registered in `async_setup`. A wrong call raises
-  `ServiceValidationError`, a failed write `HomeAssistantError`; entity
-  writes raise `HomeAssistantError` too.
-- Every platform sets `PARALLEL_UPDATES`: 0 for read-only ones, 1 for those
-  that write.
-- **Every module**, the device library included, keeps **above 95 % test
-  coverage**; `config_flow.py` stays at 100 %, with every error case
-  followed by a successful retry.
-- mypy runs strict plus the checks Home Assistant core adds
-  (`pyproject.toml`). Every method that overrides one carries `@override`
-  directly above the `def`.
-- The README covers the high-level description, installation, removal and
-  every action with its fields. Brand images ship in `brand/`.
+- Setup only via the config flow; it tests the connection first and never
+  adds a controller twice.
+- Every config flow field has a `data_description`; the README covers every
+  setup field and option.
+- Entities: unique IDs, `has_entity_name`. Runtime state in
+  `entry.runtime_data`, typed `CfosConfigEntry`.
+- Setup raises `ConfigEntryNotReady` or `ConfigEntryError` when the wallbox
+  is unusable. S0 meters and Charging Manager never block it.
+- Entities are **unavailable** while their data cannot be read; no stale
+  values.
+- Unavailability and recovery are logged **once** each: coordinators do so
+  on `UpdateFailed`; anything extra at info level.
+- Actions registered in `async_setup`. Wrong call: `ServiceValidationError`;
+  failed write (action or entity): `HomeAssistantError`.
+- `PARALLEL_UPDATES` in every platform: 0 read-only, 1 writing.
+- **Every module**, library included, above **95 %** coverage;
+  `config_flow.py` 100 %, each error case followed by a successful retry.
+- mypy strict plus Home Assistant core's checks (`pyproject.toml`);
+  `@override` directly above every overriding `def`.
+- README: description, installation, removal, every action with its fields.
+  Brand images in `brand/`.
 
 ## Commits and releases
 
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org):
-  `type(scope): summary`, e.g. `feat: ask for the Charging Manager during setup`
-  or `refactor(config-flow): share fields and probe helpers`.
+- [Conventional Commits](https://www.conventionalcommits.org):
+  `type(scope): summary`, e.g. `feat: ask for the Charging Manager during
+  setup`.
   - Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`,
     `chore`.
-  - Common scopes: `config-flow`, `lib`, `sensor`, `switch`, `number`.
-  - The summary is imperative and lower case, with no full stop.
-  - Mark a breaking change with `!` after the type, e.g.
-    `feat!: …`, and a `BREAKING CHANGE:` footer.
-- Each commit passes the checks on its own. Push changes to a branch, not
-  to `main`; do not create pull requests, tags or releases unless asked.
-- Releases: bump `version` in `manifest.json`, then the maintainer tags
-  `X.Y.Z` (no `v` prefix) on GitHub and writes the release notes. HACS offers
-  the GitHub releases. CI enforces both ends:
-  - once `custom_components/` changed since the latest release tag, the
-    version in `manifest.json` must be above that tag, so the first such pull
-    request after a release bumps it;
-  - a pushed release tag must equal the version in `manifest.json`
-    (`.github/workflows/release.yml`).
-- The manifest `categories` are held back until hassfest accepts them
-  (expected with Home Assistant 2026.11); see [TODO.md](TODO.md).
+  - Scopes: `config-flow`, `lib`, `sensor`, `switch`, `number`, ….
+  - Imperative, lower case, no full stop.
+  - Breaking: `!` after the type and a `BREAKING CHANGE:` footer.
+- Every commit passes the checks. Push to a branch, never `main`; no pull
+  requests, tags or releases unless asked.
+- Release: bump `version` in `manifest.json`; the maintainer publishes a full
+  GitHub release `X.Y.Z` (no `v`) with notes, which the Marketplace shows on
+  the update entity. CI enforces:
+  - `custom_components/` changed since the latest release tag → the manifest
+    version is above it;
+  - a pushed release tag equals the manifest version (`release.yml`).
+- Manifest categories (one to three): `energy.ev_charging`,
+  `energy.meters_monitoring`. The HACS action fails on unknown ones.

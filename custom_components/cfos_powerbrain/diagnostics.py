@@ -11,7 +11,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 
-from .cfos_modbus import CfosChargingManager, PowerBrainUnit, UnsupportedDeviceError
+from .cfos_modbus import UnsupportedDeviceError
 from .coordinator import CfosConfigEntry, CfosUnitData
 
 TO_REDACT = {CONF_HOST}
@@ -43,17 +43,7 @@ async def _async_unit_diagnostics(unit: CfosUnitData[Any]) -> dict[str, Any]:
     for address in device.private_registers:
         if address in holding:
             holding[address] = "**REDACTED**"
-    result["firmware"] = device.firmware_version
-    if isinstance(device, PowerBrainUnit):
-        result["mapping_version"] = device.identity.mapping_version
-    if isinstance(device, CfosChargingManager) and device.models is not None:
-        result["models"] = [
-            {"id": model.model_id, "address": model.address, "length": model.length}
-            for model in device.models.chain
-        ]
-        result["variable_layout"] = (
-            type(device.variables).__name__ if device.variables else None
-        )
+    result |= device.summary()
     result["registers"] = registers
     return result
 

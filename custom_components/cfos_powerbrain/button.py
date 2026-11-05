@@ -13,7 +13,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .cfos_modbus import CfosDevice, CfosS0Meter, CfosWallbox
 from .coordinator import CfosConfigEntry
-from .entity import CfosEntity, CfosEntityDescription
+from .entity import CfosEntity, CfosEntityDescription, supported_entities
 
 PARALLEL_UPDATES = 1
 
@@ -63,14 +63,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up the buttons."""
     runtime_data = entry.runtime_data
-    wallbox = runtime_data.wallbox
-    entities: list[CfosButton[Any]] = [
-        CfosButton(wallbox, description) for description in WALLBOX_BUTTONS
-    ]
+    entities: list[CfosButton[Any]] = []
+    entities += supported_entities(runtime_data.wallbox, WALLBOX_BUTTONS, CfosButton)
     for meter in runtime_data.s0_meters.values():
-        entities.extend(
-            CfosButton(meter, description) for description in S0_METER_BUTTONS
-        )
+        entities += supported_entities(meter, S0_METER_BUTTONS, CfosButton)
     async_add_entities(entities)
 
 

@@ -1,6 +1,7 @@
 {
   "domain": "cfos_powerbrain",
   "name": "cFos Power Brain Wallbox (Modbus)",
+  "categories": ["energy.ev_charging", "energy.meters_monitoring"],
   "codeowners": ["@TimoFriedri"],
   "config_flow": true,
   "dependencies": ["modbus"],
@@ -10,5 +11,5 @@
   "issue_tracker": "https://github.com/TimoFriedri/ha-cfos-powerbrain-modbus/issues",
   "loggers": ["modbus_connection", "tmodbus"],
   "requirements": [],
-  "version": "0.5.0"
+  "version": "0.6.0"
 }

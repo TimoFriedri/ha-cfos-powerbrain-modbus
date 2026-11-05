@@ -12,7 +12,7 @@ discovered by scanning the model chain.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Final, override
+from typing import TYPE_CHECKING, Any, Final, override
 
 from modbus_connection.model import Component, FloatField, float32 as scaled_float32
 from modbus_connection.model.sunspec import (
@@ -272,6 +272,21 @@ class CfosChargingManager(CfosDevice):
             return range(0)
         start = self.common.resolved_fields["serial_number"].address
         return range(start, start + 16)
+
+    @override
+    def summary(self) -> dict[str, Any]:
+        """The firmware, the models found and the variables' layout and names."""
+        result = super().summary()
+        if self.models is not None:
+            result["models"] = [
+                {"id": model.model_id, "address": model.address, "length": model.length}
+                for model in self.models.chain
+            ]
+            result["variable_layout"] = (
+                type(self.variables).__name__ if self.variables else None
+            )
+            result["variable_names"] = self.variable_names
+        return result
 
     @override
     async def _async_setup(self) -> None:
