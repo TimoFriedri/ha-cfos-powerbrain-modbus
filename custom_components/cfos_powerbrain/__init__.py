@@ -53,7 +53,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None:
     """Set up a cFos Power Brain Wallbox from a config entry."""
     serial = entry.unique_id
     assert serial is not None
@@ -132,7 +132,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool
 
     entry.runtime_data = runtime_data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
 
 
 async def _async_setup_charging_manager(
@@ -215,6 +214,6 @@ def _coordinators(
     )
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: CfosConfigEntry) -> None:
     """Unload a config entry; the modbus integration closes the connections."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
