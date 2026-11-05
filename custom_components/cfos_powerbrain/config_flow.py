@@ -8,6 +8,7 @@ from typing import Any, override
 from modbus_connection import ModbusError, ModbusTcpParams
 import probatio
 
+from homeassistant import data_entry_flow
 from homeassistant.components.modbus import async_get_temporary_unit
 from homeassistant.config_entries import (
     ConfigFlow,
@@ -17,6 +18,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.field_visibility import FieldCondition
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
@@ -90,13 +92,20 @@ SCAN_INTERVAL_SCHEMA = {
     ),
 }
 
+# The port and Modbus ID only show, and are only stored, while it is on.
+CHARGING_MANAGER_ON: FieldCondition = {"field": CONF_CHARGING_MANAGER, "value": True}
+
 CHARGING_MANAGER_SCHEMA = {
     probatio.Required(CONF_CHARGING_MANAGER, default=False): BooleanSelector(),
-    probatio.Required(
-        CONF_CHARGING_MANAGER_PORT, default=DEFAULT_CHARGING_MANAGER_PORT
+    data_entry_flow.Required(
+        CONF_CHARGING_MANAGER_PORT,
+        default=DEFAULT_CHARGING_MANAGER_PORT,
+        visible=CHARGING_MANAGER_ON,
     ): PORT_FIELD,
-    probatio.Required(
-        CONF_CHARGING_MANAGER_UNIT_ID, default=DEFAULT_CHARGING_MANAGER_UNIT_ID
+    data_entry_flow.Required(
+        CONF_CHARGING_MANAGER_UNIT_ID,
+        default=DEFAULT_CHARGING_MANAGER_UNIT_ID,
+        visible=CHARGING_MANAGER_ON,
     ): UNIT_ID_FIELD,
 }
 

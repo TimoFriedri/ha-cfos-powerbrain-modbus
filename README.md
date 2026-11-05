@@ -281,8 +281,8 @@ Then enter:
 | Modbus slave ID | 1 | Slave ID of the charging station |
 | Polling interval | 10 s | Seconds between reads of the live values, 1–30 |
 | Charging Manager | off | Adds the Charging Manager as its own device; see [below](#setting-up-the-charging-manager) |
-| Charging Manager port | 502 | TCP port of the Charging Manager's SunSpec server |
-| Charging Manager Modbus ID | 1 | Modbus ID of the Charging Manager's SunSpec server |
+| Charging Manager port | 502 | TCP port of the Charging Manager's SunSpec server; shown while the Charging Manager is on |
+| Charging Manager Modbus ID | 1 | Modbus ID of the Charging Manager's SunSpec server; shown while the Charging Manager is on |
 
 The integration identifies the device by its vendor ID and serial number
 before it creates the entry. With the Charging Manager switched on, it also

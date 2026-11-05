@@ -17,8 +17,6 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 
 from custom_components.cfos_powerbrain.const import (
     CONF_CHARGING_MANAGER,
-    CONF_CHARGING_MANAGER_PORT,
-    CONF_CHARGING_MANAGER_UNIT_ID,
     CONF_S0_METERS,
     DOMAIN,
 )
@@ -43,10 +41,9 @@ async def test_user_flow(
     assert result["data"] == ENTRY_DATA
     assert result["options"] == {
         CONF_SCAN_INTERVAL: 5,
-        # The Charging Manager stays off unless switched on.
+        # The Charging Manager stays off unless switched on, and its port and
+        # Modbus ID are only stored while it is on.
         CONF_CHARGING_MANAGER: False,
-        CONF_CHARGING_MANAGER_PORT: 502,
-        CONF_CHARGING_MANAGER_UNIT_ID: 1,
     }
     assert result["result"].unique_id == SERIAL
 
@@ -200,10 +197,9 @@ async def test_options_flow(
     assert init_integration.options == {
         CONF_SCAN_INTERVAL: 5,
         CONF_S0_METERS: ["1"],
-        # The Charging Manager stays off unless switched on.
+        # The Charging Manager stays off unless switched on, and its port and
+        # Modbus ID are only stored while it is on.
         CONF_CHARGING_MANAGER: False,
-        CONF_CHARGING_MANAGER_PORT: 502,
-        CONF_CHARGING_MANAGER_UNIT_ID: 1,
     }
     # The entry reloaded with the S0 meter.
     assert 1 in init_integration.runtime_data.s0_meters
