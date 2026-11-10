@@ -6,11 +6,9 @@ Until the repository is in [hacs/default](https://github.com/hacs/default),
 users add it as a custom repository
 ([guide](https://contributors.home-assistant.io/marketplace/guides/catalog/)).
 
-- [ ] Open the pull request to hacs/default from your account, with "Allow
-      edits by maintainers" on: add `TimoFriedri/ha-cfos-powerbrain-modbus` to
-      `integration`, alphabetically. Fill in its template: checklist, links to
-      the 0.6.0 release and to passing HACS and hassfest runs.
-- [ ] Wait for the review; it can take months.
+- [ ] Wait for the review of
+      [hacs/default#13875](https://github.com/hacs/default/pull/13875); it can
+      take months. Keep "Allow edits by maintainers" on.
 - [ ] Once in the catalog, check the icon before installation. The installed
       integration already shows it (`brand/`).
 
